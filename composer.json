@@ -60,9 +60,12 @@
     },
     "autoload": {
         "psr-4": {
-            "App\\": "app/"
+            "App\\": "app/",
+            "DHelper\\": "../common/"
         },
-        "files": []
+        "files": [
+            "../common/autoloader.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
