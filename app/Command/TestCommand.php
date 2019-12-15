@@ -10,9 +10,11 @@ use Hyperf\Di\Annotation\Inject;
 use Hyperf\Logger\LoggerFactory;
 use Psr\Container\ContainerInterface;
 use Swoole\Process;
+use Swoole\Timer;
 use xingwenge\canal_php\CanalConnectorFactory;
 use xingwenge\canal_php\CanalClient;
 use xingwenge\canal_php\Fmt;
+use Hyperf\DbConnection\Db;
 
 /**
  * @Command
@@ -31,6 +33,7 @@ class TestCommand extends HyperfCommand
 
     protected $masterPid;
     protected $masterData = [];
+    protected $workers = [];
 
     public function __construct(ContainerInterface $container, LoggerFactory $logger)
     {
@@ -49,6 +52,11 @@ class TestCommand extends HyperfCommand
 
     public function handle()
     {
+
+//        $rt = Db::select("show tables;");
+//        print_r($rt);
+//
+//        return '';
         Process::daemon();
         self::setProcessName("Hy-Process-Master");
 
@@ -62,8 +70,20 @@ class TestCommand extends HyperfCommand
             self::log('Master-USR2');
         });
 
+        Process::signal(SIGTERM, function($sig){
+
+        });
+        Process::signal(SIGKILL, function($sig){
+
+        });
+        Process::signal(SIGCHLD, function($sig){
+            while($ret = Process::wait(false)){
+                Process::kill($this->masterPid, SIGTERM);
+            }
+        });
 
 
+        $this->createChildProcess();
 
 
         return '';
@@ -93,6 +113,37 @@ class TestCommand extends HyperfCommand
 //        $this->line('Hello Hyperf!', 'info');
     }
 
+    public function createChildProcess()
+    {
+        $reserveProcess = new \Swoole\Process(function (\Swoole\Process $worker) {
+            $this->checkMpid($worker);
+            //$beginTime=microtime(true);
+            try {
+                // 设置子进程名称
+                self::setProcessName("process child:{$this->masterPid}");
+                Timer::tick(3000, function(int $timer_id){
+                    self::log("child timer id:{$timer_id}");
+                });
+            } catch (\Throwable $e) {
+                self::log("child process error - " . $e->getMessage());
+            }
+            $worker->exit(0);
+        });
+        $pid = $reserveProcess->start();
+        $this->workers[$pid] = $reserveProcess;
+        self::log('worker pid: ' . $pid . ' is start...');
+    }
+
+    //主进程如果不存在了，子进程退出
+    private function checkMpid(&$worker)
+    {
+        if (!@\Swoole\Process::kill($this->masterPid, 0)) {
+            /** @var $worker Process */
+            $worker->exit();
+            self::log("Master process exited, I [{$worker['pid']}] also quit");
+        }
+    }
+
     protected static function setProcessName($name)
     {
         if (PHP_OS != 'Darwin' && function_exists('swoole_set_process_name')) {
@@ -100,11 +151,16 @@ class TestCommand extends HyperfCommand
         }
     }
 
-    protected static function log($msg, array $context)
+    protected static function log($msg, array $context = [])
     {
         if (is_array($msg) || is_object($msg)) {
             $msg = json_encode($msg);
         }
         self::$logger->info($msg, $context);
+    }
+
+    protected static function getMemoryUsage() {
+        // 类型是MB,获取时需要手动加上
+        return round(memory_get_usage() / (1024 * 1024), 2);
     }
 }

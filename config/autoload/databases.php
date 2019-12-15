@@ -14,6 +14,7 @@ return [
     'default' => [
         'driver' => env('DB_DRIVER', 'mysql'),
         'host' => env('DB_HOST', defined('HOST_1') ? HOST_1 : 'localhost'),
+        'port' => env('DB_PORT', defined('PORT_1') ? PORT_1 : 3306),
         'database' => env('DB_DATABASE', 'gk'),
         'username' => env('DB_USERNAME', defined('USER_1') ? USER_1 : 'root'),
         'password' => env('DB_PASSWORD', defined('PWD_1') ? PWD_1 : ''),
