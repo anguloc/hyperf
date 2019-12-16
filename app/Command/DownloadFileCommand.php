@@ -7,17 +7,19 @@ namespace App\Command;
 use App\Model\Content;
 use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Command\Annotation\Command;
+use Hyperf\Di\Annotation\Inject;
 use Psr\Container\ContainerInterface;
 use xingwenge\canal_php\CanalConnectorFactory;
 use xingwenge\canal_php\CanalClient;
 use xingwenge\canal_php\Fmt;
 use Hyperf\Guzzle\ClientFactory;
 use Hyperf\DbConnection\Db;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @Command
  */
-class DownloadFileCommand extends HyperfCommand
+class DownloadFileCommand extends BaseCommand
 {
     /**
      * @var ContainerInterface
@@ -40,9 +42,9 @@ class DownloadFileCommand extends HyperfCommand
 
     public function handle()
     {
-        $a = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
-        print_r($a);
-        die;
+//        $a = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+//        print_r($a);
+//        die;
 
         $str = "https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/Editormd/editormd.min.css?ver=2.0.1 https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/Config/editormd.min.css?ver=10.0.3 https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/Prism.js/themes/prism.css https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/CodeMirror/lib/codemirror.css https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/CodeMirror/addon/dialog/dialog.css https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/CodeMirror/addon/search/matchesonscrollbar.css https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/Turndown/turndown.js?ver=5.0.1 https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/Editormd/editormd.min.js?ver=2.0.1 https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/Config/editormd.min.js?ver=10.0.3 http://blog.gkfk5.cn/wp-includes/js/shortcode.min.js?ver=5.2.2 http://blog.gkfk5.cn/wp-includes/js/wp-util.min.js?ver=5.2.2 http://blog.gkfk5.cn/wp-admin/js/svg-painter.js?ver=5.2.2 https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/CodeMirror/lib/codemirror.js https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/Editormd/lib/modes.min.js https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/Editormd/lib/addons.min.js https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/Marked/marked.min.js https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/Editormd/lib/prism.min.js https://cdn.jsdelivr.net/wp/wp-editormd/tags/10.0.3/assets/MindMap/mindMap.min.js https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js";
 
@@ -61,6 +63,7 @@ class DownloadFileCommand extends HyperfCommand
         $content_model->form_data = 123;
 
         $rt = $content_model->save();
+        var_dump($rt);
 
         echo 12312312312321;
 

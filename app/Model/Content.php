@@ -11,12 +11,15 @@ namespace App\Model;
  */
 class Content extends Model
 {
+//    const UPDATED_AT = null;
     /**
      * The table associated with the model.
      *
      * @var string
      */
     protected $table = 'content';
+
+    protected $connection;
     /**
      * The attributes that are mass assignable.
      *
