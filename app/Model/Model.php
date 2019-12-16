@@ -19,4 +19,9 @@ use Hyperf\ModelCache\CacheableInterface;
 abstract class Model extends BaseModel implements CacheableInterface
 {
     use Cacheable;
+
+    protected $dateFormat = "U";
+
+    const CREATED_AT  = 'add_time';
+    const UPDATED_AT = 'update_time';
 }

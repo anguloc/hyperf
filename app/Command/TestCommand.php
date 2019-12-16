@@ -34,6 +34,7 @@ class TestCommand extends HyperfCommand
     protected $masterPid;
     protected $masterData = [];
     protected $workers = [];
+    protected $coroutine = false;
 
     public function __construct(ContainerInterface $container, LoggerFactory $logger)
     {
