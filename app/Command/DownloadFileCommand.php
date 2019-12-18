@@ -59,29 +59,32 @@ class DownloadFileCommand extends BaseCommand
         $this->dTime('start');
 //        print_r($arr);
 
+
+
+//        $str = '/var/www/html/hyperf/runtime/a/wp/wp-editormd/tags/10.0.3/assets/Config';
+//
+//        $this->makeDirectory($str);
+//
+//        return '';
+
         $content_model = new Content();
-        $content_model->form_data = 123;
-
-        $rt = $content_model->save();
-        var_dump($rt);
-
-        echo 12312312312321;
-
-        print_r($rt);
-        return '';
-
-
-        $rt = DB::select("show tables;");
-
-        print_r($rt);
-
-        return '';
 
         foreach ($arr as $k => $url) {
             $url = trim($url);
+
+            $url_arr = parse_url($url);
+            $file_info = pathinfo($url_arr['path'] ?? '');
+
+            $file_name = $file_info['basename'];
+            $dirname = $file_info['dirname'];
+
+            $dir_path = BASE_PATH . '/runtime/a' . $dirname;
+            $this->makeDirectory($dir_path);
+
             try {
                 $resp = $http_client->get($url)->getBody()->getContents();
 
+                file_put_contents($dir_path . '/' . $file_name, $resp);
 
                 $this->dTime('zxc');
             }catch(\Exception $e){
@@ -98,8 +101,11 @@ class DownloadFileCommand extends BaseCommand
 
     private function makeDirectory($path)
     {
-        if (!is_dir(dirname($path))) {
-            mkdir(dirname($path), 0777, true);
+//        if (!is_dir(dirname($path))) {
+//            mkdir(dirname($path), 0777, true);
+//        }
+        if (!is_dir($path)) {
+            mkdir($path, 0777, true);
         }
 
         return $path;
