@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Command;
+namespace App\Command\Lib;
 
 use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Di\Annotation\Inject;

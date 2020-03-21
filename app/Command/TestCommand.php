@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Amqp\Producer\MinuteProducer;
+use App\Command\Lib\BaseCommand;
+use App\Util\DelayQueue;
+use App\Util\Logger;
+use Hyperf\Amqp\Producer;
 use Hyperf\Command\Annotation\Command;
 use Hyperf\Di\Annotation\Inject;
 use Hyperf\Logger\LoggerFactory;
@@ -14,6 +19,8 @@ use xingwenge\canal_php\CanalConnectorFactory;
 use xingwenge\canal_php\CanalClient;
 use xingwenge\canal_php\Fmt;
 use Hyperf\DbConnection\Db;
+use Hyperf\Guzzle\ClientFactory;
+use Psr\Log\LoggerInterface;
 
 /**
  * @Command
@@ -34,6 +41,8 @@ class TestCommand extends BaseCommand
     protected $masterData = [];
     protected $workers = [];
     protected $coroutine = false;
+
+    const BASE_URL = 'http://www.sis001.com/forum/';
 
     public function __construct(ContainerInterface $container, LoggerFactory $logger)
     {
@@ -57,6 +66,49 @@ class TestCommand extends BaseCommand
 //        print_r($rt);
 //
 //        return '';
+
+
+
+
+//        $this->container->get(Producer::class)->produce($message);
+
+
+        MinuteProducer::addMessage([1]);
+
+        return '';
+
+        $this->container->get(LoggerInterface::class);
+        Logger::get();
+
+        echo 123123;
+        echo "\n";
+        die;
+
+        $a = '';
+        try {
+            $client = make(ClientFactory::class)->create([
+                'base_uri' => self::BASE_URL,
+            ]);
+            $res = $client->get('http://www.sis001.com/forum/forum-279-1.html');
+//            $res = $client->get('http://www.gkfk5.cn');
+            $a = $res->getBody()->getContents();
+        }catch (\Exception $e){
+            $a = $e->getMessage();
+        }
+
+
+
+        $b = file_put_contents(BASE_PATH . '/runtime/logs/log.log', $a);
+        var_dump($b);
+
+
+
+        echo PHP_EOL;
+        return '';
+
+        echo 1;
+
+        return '';
         Process::daemon();
         self::setProcessName("Hy-Process-Master");
 

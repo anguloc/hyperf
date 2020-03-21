@@ -11,4 +11,8 @@ declare(strict_types=1);
  */
 
 return [
+    \Hyperf\Amqp\Consumer::class => \App\Amqp\Lib\ReConsumer::class,
+    \Psr\Log\LoggerInterface::class => function(){
+        return \App\Util\Logger::get();
+    },
 ];

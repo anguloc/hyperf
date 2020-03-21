@@ -12,10 +12,10 @@ declare(strict_types=1);
 
 return [
     'default' => [
-        'host' => 'localhost',
-        'port' => 5672,
-        'user' => 'guest',
-        'password' => 'guest',
+        'host' => 'www.gkfk5.cn',
+        'port' => defined('PORT_3') ? PORT_3 : 5672,
+        'user' => defined('USER_1') ? USER_1 : 'root',
+        'password' => defined('PWD_1') ? PWD_1 : 'root',
         'vhost' => '/',
         'pool' => [
             'min_connections' => 1,
