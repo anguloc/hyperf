@@ -11,7 +11,7 @@ use Hyperf\Amqp\Annotation\Consumer;
 
 
 /**
- * @Consumer(nums=2,enable=false)
+ * @Consumer(nums=1,enable=false)
  */
 class MinuteConsumer extends DelayConsumer
 {
