@@ -66,10 +66,11 @@ class DelayQueue
 
     public static function loopDelay($data)
     {
-        print_r('loop----');
-        print_r(date('Y-m-d H:i:s'));
-        print_r($data);
-        echo PHP_EOL;
+        $tmp = $data;
+        if (is_array($tmp) || is_object($tmp)) {
+            $tmp = json_encode($tmp);
+        }
+        Logger::get()->info($tmp);
         if ($data['expire'] > 0) {
             list($exchange, $routing_key) = self::selectExchangeAndReduceTime($data['expire']);
             $message = (new class extends DelayProducer
