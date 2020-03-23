@@ -6,12 +6,15 @@ namespace App\Command;
 
 use App\Amqp\Producer\MinuteProducer;
 use App\Command\Lib\BaseCommand;
+use App\Command\Lib\ProcessCommand;
 use App\Util\DelayQueue;
 use App\Util\Logger;
 use Hyperf\Amqp\Producer;
 use Hyperf\Command\Annotation\Command;
+use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Di\Annotation\Inject;
 use Hyperf\Logger\LoggerFactory;
+use Hyperf\Redis\Redis;
 use Psr\Container\ContainerInterface;
 use Swoole\Process;
 use Swoole\Timer;
@@ -25,33 +28,30 @@ use Psr\Log\LoggerInterface;
 /**
  * @Command
  */
-class TestCommand extends BaseCommand
+class TestCommand extends ProcessCommand
 {
     /**
      * @var ContainerInterface
      */
     protected $container;
 
-    /**
-     * @var \Hyperf\Logger\Logger
-     */
-    protected static $logger;
 
     protected $masterPid;
     protected $masterData = [];
     protected $workers = [];
     protected $coroutine = false;
 
+    protected static $daemon = true;
+
     const BASE_URL = 'http://www.sis001.com/forum/';
 
-    public function __construct(ContainerInterface $container, LoggerFactory $logger)
+    protected $nums = 1;
+
+    public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
         parent::__construct();
         $this->setName("test");
-
-        // log
-        self::$logger = $logger->get('hy-process');
     }
 
     public function configure()
@@ -59,7 +59,100 @@ class TestCommand extends BaseCommand
         $this->setDescription('test');
     }
 
-    public function handle()
+    public function handle3()
+    {
+        Process::daemon();
+        $this->masterPid = getmypid();
+        $this->init();
+        self::setProcessName("{$this->masterName}:test:master");
+
+        $pool = new \Swoole\Process\Pool(1);
+
+        set_exception_handler(function(){
+            echo 'ex';
+            print_r(func_get_args());
+        });
+        set_error_handler(function(){
+            echo 'er';
+            print_r(func_get_args());
+        });
+
+        $pool->on('WorkerStart', function(\Swoole\Process\Pool $pool, $worker_id){
+            self::setProcessName("{$this->masterName}:test:worker {$worker_id}#");
+            while(1){
+                sleep(3);
+            }
+        });
+
+        $pool->on('WorkerStop', function(\Swoole\Process\Pool $pool, $worker_id){
+            echo "worker id {$worker_id} stop\r";
+        });
+
+        $pool->start();
+
+    }
+
+    public function handle2()
+    {
+        Process::daemon();
+        $this->masterPid = getmypid();
+        $this->init();
+        self::setProcessName("{$this->masterName}:test:master");
+
+        Process::signal(SIGTERM, function ($sig) {
+            $this->killWorkersAndExitMaster();
+        });
+        Process::signal(SIGKILL, function ($sig) {
+            $this->killWorkersAndExitMaster();
+        });
+        Process::signal(SIGCHLD, function ($sig) {
+            while (true) {
+                $ret = Process::wait(false);
+                if ($ret) {
+                    $pid = $ret['pid'];
+//                    Process::kill($this->masterPid, SIGTERM);
+                    self::log($this->masterName . '子进程[' . $pid . ']wait');
+                    $worker = $this->workers[$pid];
+                    $this->clearWorkerData($worker);
+                    if ($this->isRestartWorker($worker)) {
+                        $new_pid = $worker->start();
+//                        $new_pid = $this->createChildProcess();
+                        if (isset($new_pid) && $new_pid > 0) {
+                            // 为了循环重启做准备
+                            $this->workers[$new_pid] = $worker;
+                        } else {
+                            self::log($this->masterName . "原子进程[{$pid}]，重启失败");
+                        }
+                    }
+
+                    if (empty($this->workers) && false) {
+                        $this->exitMaster();
+                    }
+                    self::log("新pid为{$new_pid},当前进程".getmypid()."");
+                }
+            }
+        });
+
+        $process = new Process(function(Process $worker){
+            self::setProcessName("{$this->masterName}:test:worker");
+            go(function(){
+                Timer::tick(1000, function(){
+
+                });
+            });
+            while(1){};
+        });
+        $process->start();
+        $this->workers[$process->pid] = $process;
+
+        go(function(){
+            Timer::tick(3000, function(){
+
+            });
+        });
+    }
+
+    public function handle1()
     {
 
 //        $rt = Db::select("show tables;");
@@ -165,50 +258,25 @@ class TestCommand extends BaseCommand
 //        $this->line('Hello Hyperf!', 'info');
     }
 
-    public function createChildProcess()
+    protected function init()
     {
-        $reserveProcess = new \Swoole\Process(function (\Swoole\Process $worker) {
-            $this->checkMpid($worker);
-            //$beginTime=microtime(true);
-            try {
-                // 设置子进程名称
-                self::setProcessName("process child:{$this->masterPid}");
-                Timer::tick(3000, function(int $timer_id){
-                    self::log("child timer id:{$timer_id}");
-                });
-            } catch (\Throwable $e) {
-                self::log("child process error - " . $e->getMessage());
-            }
-            $worker->exit(0);
+        $this->masterName = 'test:process';
+    }
+
+    public function runProcess()
+    {
+        self::log('worker start');
+        Timer::tick(10000, function(){
+//            $redis = $this->container->get(Redis::class);
+
+//            $b = $redis->exists('aaa');
+
+//            \Redis::
+
+
+            self::log("aaaaaa{1}");
         });
-        $pid = $reserveProcess->start();
-        $this->workers[$pid] = $reserveProcess;
-        self::log('worker pid: ' . $pid . ' is start...');
-    }
 
-    //主进程如果不存在了，子进程退出
-    private function checkMpid(&$worker)
-    {
-        if (!@\Swoole\Process::kill($this->masterPid, 0)) {
-            /** @var $worker Process */
-            $worker->exit();
-            self::log("Master process exited, I [{$worker['pid']}] also quit");
-        }
-    }
-
-    protected static function setProcessName($name)
-    {
-        if (PHP_OS != 'Darwin' && function_exists('swoole_set_process_name')) {
-            swoole_set_process_name($name);
-        }
-    }
-
-    protected static function log($msg, array $context = [])
-    {
-        if (is_array($msg) || is_object($msg)) {
-            $msg = json_encode($msg);
-        }
-        self::$logger->info($msg, $context);
     }
 
     protected static function getMemoryUsage() {

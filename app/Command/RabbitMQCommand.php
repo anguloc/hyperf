@@ -60,7 +60,7 @@ class RabbitMQCommand extends ProcessCommand
     protected function init()
     {
         $rabbit = $this->input->getArgument('rabbit');
-        $this->masterName = $rabbit . ':custom rabbit';
+        $this->masterName = $rabbit . ':custom_rabbit';
         if (!class_exists($rabbit)) {
             $rabbit = $this->baseConsumerPath . $rabbit;
             if (!class_exists($rabbit)) {

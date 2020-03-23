@@ -38,12 +38,16 @@ class IndexController extends AbstractController
 
         $tr = 3600 * 2 + 60 * 13;
         $tr = 60 * 3;
+        $tr = 0;
+//        $tr = 86400 *2 + 3600 * 2 + 600 * 2 + 60 *2;
+        $b = date('Y-m-d H:i:s',time()+$tr);
         $b = DemoProducer::addMessage([
             'a' => 1,
             'b' => 2,
             'c' => '4',
             'time' => date('Y-m-d H:i:s'),
         ],$tr);
+
 
         return [
             'method' => $method,
