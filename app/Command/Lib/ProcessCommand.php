@@ -62,6 +62,12 @@ abstract class ProcessCommand extends BaseCommand
             $this->pool = new \Swoole\Process\Pool($nums, SWOOLE_IPC_UNIXSOCK, 0, true);
             $this->pool->on('WorkerStart', function (\Swoole\Process\Pool $pool, $worker_id) {
                 self::setProcessName("{$this->masterName}:process:worker");
+                $process = $pool->getProcess($worker_id);
+                $pid = 0;
+                if ($process instanceof Process) {
+                    $pid = $process->pid;
+                }
+                self::log('Worker:id:' . $worker_id . ',pid: ' . $pid . ' is start...');
                 $this->runProcess();
             });
             $this->pool->on('WorkerStop', function (\Swoole\Process\Pool $pool, $worker_id) {
