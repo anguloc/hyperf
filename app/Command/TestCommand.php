@@ -7,6 +7,7 @@ namespace App\Command;
 use App\Amqp\Producer\MinuteProducer;
 use App\Command\Lib\BaseCommand;
 use App\Command\Lib\ProcessCommand;
+use App\Spider\Lib\QiDianToken;
 use App\Util\DelayQueue;
 use App\Util\Logger;
 use Hyperf\Amqp\Producer;
@@ -24,11 +25,12 @@ use xingwenge\canal_php\Fmt;
 use Hyperf\DbConnection\Db;
 use Hyperf\Guzzle\ClientFactory;
 use Psr\Log\LoggerInterface;
+use Sunra\PhpSimple\HtmlDomParser;
 
 /**
  * @Command
  */
-class TestCommand extends ProcessCommand
+class TestCommand extends BaseCommand
 {
     /**
      * @var ContainerInterface
@@ -59,228 +61,116 @@ class TestCommand extends ProcessCommand
         $this->setDescription('test');
     }
 
-    public function handle3()
+    public function handle()
     {
-        Process::daemon();
-        $this->masterPid = getmypid();
-        $this->init();
-        self::setProcessName("{$this->masterName}:test:master");
-
-        $pool = new \Swoole\Process\Pool(1);
-
-        set_exception_handler(function(){
-            echo 'ex';
-            print_r(func_get_args());
-        });
-        set_error_handler(function(){
-            echo 'er';
-            print_r(func_get_args());
-        });
-
-        $pool->on('WorkerStart', function(\Swoole\Process\Pool $pool, $worker_id){
-            self::setProcessName("{$this->masterName}:test:worker {$worker_id}#");
-            while(1){
-                sleep(3);
-            }
-        });
-
-        $pool->on('WorkerStop', function(\Swoole\Process\Pool $pool, $worker_id){
-            echo "worker id {$worker_id} stop\r";
-        });
-
-        $pool->start();
-
-    }
-
-    public function handle2()
-    {
-        Process::daemon();
-        $this->masterPid = getmypid();
-        $this->init();
-        self::setProcessName("{$this->masterName}:test:master");
-
-        Process::signal(SIGTERM, function ($sig) {
-            $this->killWorkersAndExitMaster();
-        });
-        Process::signal(SIGKILL, function ($sig) {
-            $this->killWorkersAndExitMaster();
-        });
-        Process::signal(SIGCHLD, function ($sig) {
-            while (true) {
-                $ret = Process::wait(false);
-                if ($ret) {
-                    $pid = $ret['pid'];
-//                    Process::kill($this->masterPid, SIGTERM);
-                    self::log($this->masterName . '子进程[' . $pid . ']wait');
-                    $worker = $this->workers[$pid];
-                    $this->clearWorkerData($worker);
-                    if ($this->isRestartWorker($worker)) {
-                        $new_pid = $worker->start();
-//                        $new_pid = $this->createChildProcess();
-                        if (isset($new_pid) && $new_pid > 0) {
-                            // 为了循环重启做准备
-                            $this->workers[$new_pid] = $worker;
-                        } else {
-                            self::log($this->masterName . "原子进程[{$pid}]，重启失败");
-                        }
-                    }
-
-                    if (empty($this->workers) && false) {
-                        $this->exitMaster();
-                    }
-                    self::log("新pid为{$new_pid},当前进程".getmypid()."");
-                }
-            }
-        });
-
-        $process = new Process(function(Process $worker){
-            self::setProcessName("{$this->masterName}:test:worker");
-            go(function(){
-                Timer::tick(1000, function(){
-
-                });
-            });
-            while(1){};
-        });
-        $process->start();
-        $this->workers[$process->pid] = $process;
-
-        go(function(){
-            Timer::tick(3000, function(){
-
-            });
-        });
-    }
-
-    public function handle1()
-    {
-
-//        $rt = Db::select("show tables;");
-//        print_r($rt);
-//
-//        return '';
-
-
-
-
 //        $this->container->get(Producer::class)->produce($message);
-
-
-        MinuteProducer::addMessage([1]);
-
-        return '';
-
-        $this->container->get(LoggerInterface::class);
-        Logger::get();
-
-        echo 123123;
-        echo "\n";
-        die;
-
-        $a = '';
-        try {
-            $client = make(ClientFactory::class)->create([
-                'base_uri' => self::BASE_URL,
-            ]);
-            $res = $client->get('http://www.sis001.com/forum/forum-279-1.html');
-//            $res = $client->get('http://www.gkfk5.cn');
-            $a = $res->getBody()->getContents();
-        }catch (\Exception $e){
-            $a = $e->getMessage();
-        }
-
-
-
-        $b = file_put_contents(BASE_PATH . '/runtime/logs/log.log', $a);
-        var_dump($b);
-
-
-
-        echo PHP_EOL;
-        return '';
-
-        echo 1;
-
-        return '';
-        Process::daemon();
-        self::setProcessName("Hy-Process-Master");
-
-        $this->masterPid = getmypid();
-        $this->masterData['start_time'] = time();
-
-        Process::signal(SIGUSR1, function ($sig) {
-            self::log('Master-USR1');
+        set_error_handler(function () {
+//            print_r(func_get_args());
+            echo "error\r";
         });
-        Process::signal(SIGUSR2, function ($sig) {
-            self::log('Master-USR2');
+        set_exception_handler(function () {
+//            print_r(func_get_args());
+            echo "ex\r";
         });
 
-        Process::signal(SIGTERM, function($sig){
-
-        });
-        Process::signal(SIGKILL, function($sig){
-
-        });
-        Process::signal(SIGCHLD, function($sig){
-            while($ret = Process::wait(false)){
-                Process::kill($this->masterPid, SIGTERM);
-            }
-        });
-
-
-        $this->createChildProcess();
-
-
-        return '';
-        try {
-            $client = CanalConnectorFactory::createClient(CanalClient::TYPE_SOCKET_CLUE);
-            # $client = CanalConnectorFactory::createClient(CanalClient::TYPE_SWOOLE);
-
-            $client->connect('www.gkfk5.cn', 11111);
-            $client->checkValid();
-            $client->subscribe("1001", "example", ".*\\..*");
-            # $client->subscribe("1001", "example", "db_name.tb_name"); # 设置过滤
-
-            while (true) {
-                $message = $client->get(100);
-                if ($entries = $message->getEntries()) {
-                    foreach ($entries as $entry) {
-                        Fmt::println($entry);
-                    }
+        if (!function_exists('https_request')) {
+            function https_request($url, $data = null)
+            {
+                $curl = curl_init();
+                curl_setopt($curl, CURLOPT_URL, $url);
+                // curl_setopt($curl, CURLOPT_REFERER, 'http://www.layui.com');
+                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, FALSE);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, FALSE);
+                curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                    'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36',
+                ]);
+                if (!empty($data)) {
+                    curl_setopt($curl, CURLOPT_POST, 1);
+                    curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
                 }
-                sleep(1);
+                curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+                $output = curl_exec($curl);
+                $output = curl_getinfo($curl);
+var_dump($output);
+die;
+//                return curl_errno($curl);
+                curl_close($curl);
+                // $output = json_decode($output,true);
+                return $output;
+            }
+        }
+
+//        https_request("http://l.cn");
+//        die;
+
+        try {
+
+//            $a = https_request("https://www.zhipin.com/c101280600-p100103/%E5%8D%97%E5%B1%B1%E5%8C%BA/");
+////            $a = https_request("https://www.baidu.com");
+//            print_r($a);
+//            die;
+
+            $client = $this->container->get(ClientFactory::class)->create([
+                'headers' => [
+                    \GuzzleHttp\RequestOptions::HEADERS => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36',
+
+                ],
+//                'allow_redirects' => false
+            ]);
+
+//            $client = new \GuzzleHttp\Client([
+//                'headers' => [
+//                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36',
+//                    \GuzzleHttp\RequestOptions::ALLOW_REDIRECTS => false,
+//                ],
+//            ]);
+//
+//            $resp = $client->get("https://www.cnoz.org/0_1/");
+//            $resp = $client->get("http://www.173kt.net/book/16688/");
+            $resp = $client->get("https://www.zhipin.com/c101280600-p100103/%E5%8D%97%E5%B1%B1%E5%8C%BA/");
+//            $resp = $client->get("http://l.cn", [\GuzzleHttp\RequestOptions::ALLOW_REDIRECTS => false]);
+//            print_r($resp->getHeaders());
+            file_put_contents('a.log',$resp->getBody()->getContents());
+die;
+            $resp = $client->get("https://www.zhipin.com/web/common/security-check.html?seed=2t%2BIsPTPJ4rV%2FkDu4%2BYQ3aX5I7MdONt6LDwVyqMxwxE%3D&name=f5e6fed3&ts=1585722606822&callbackUrl=%2Fc101280600-p100103%2F%25e5%258d%2597%25e5%25b1%25b1%25e5%258c%25ba%2F&srcReferer=");
+            print_r($resp->getHeaders());
+die;
+
+            $a = microtime(true);
+            $file = 'a.log';
+
+            $str = file_get_contents($file);
+            echo mb_detect_encoding($str, array("ASCII", "UTF-8", "GB2312", "GBK", "BIG5"));
+            die;
+//            if ($from_encode = mb_detect_encoding($str, array("ASCII", "UTF-8", "GB2312", "GBK", "BIG5"))) {
+//                $str = iconv($from_encode, "UTF-8//IGNORE", $str);
+//            }
+
+            $dom = HtmlDomParser::str_get_html($str);
+            $b = microtime(true);
+//            print_r($dom);
+//            $a = $dom->find("div");
+//            $a = $dom->firstChild();
+//            print_r($a);
+
+            $listDom = $dom->getElementById("list");
+            if (empty($listDom)) {
+                echo 'err', "\r";
             }
 
-            $client->disConnect();
-        } catch (\Exception $e) {
-            echo $e->getMessage(), PHP_EOL;
+            $sd = $listDom->find('dl a');
+
+            foreach ($sd as $item) {
+                dd($item->text());
+            }
+
+
+            dd($b - $a);
+        } catch (\Throwable $e) {
+            print_r($e->getMessage());
         }
-//        $this->line('Hello Hyperf!', 'info');
-    }
 
-    protected function init()
-    {
-        $this->masterName = 'test:process';
-    }
-
-    public function runProcess()
-    {
-        self::log('worker start');
-        Timer::tick(10000, function(){
-//            $redis = $this->container->get(Redis::class);
-
-//            $b = $redis->exists('aaa');
-
-//            \Redis::
-
-
-            self::log("aaaaaa{1}");
-        });
 
     }
 
-    protected static function getMemoryUsage() {
-        // 类型是MB,获取时需要手动加上
-        return round(memory_get_usage() / (1024 * 1024), 2);
-    }
 }

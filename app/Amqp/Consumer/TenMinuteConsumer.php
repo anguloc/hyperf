@@ -11,6 +11,7 @@ use Hyperf\Amqp\Annotation\Consumer;
 
 
 /**
+ * php bin/hyperf.php process:rabbit TenMinuteConsumer >> ./runtime/logs/process.log
  * @Consumer(nums=1,enable=false)
  */
 class TenMinuteConsumer extends DelayConsumer

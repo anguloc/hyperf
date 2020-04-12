@@ -45,7 +45,7 @@ class RabbitMQCommand extends ProcessCommand
     {
         $this->container = $container;
         parent::__construct();
-        $this->setName('rabbit:process');
+        $this->setName('process:rabbit');
     }
 
     public function configure()

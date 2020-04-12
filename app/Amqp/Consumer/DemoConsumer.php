@@ -11,6 +11,7 @@ use Hyperf\Amqp\Annotation\Consumer;
 use Hyperf\Amqp\Message\ConsumerMessage;
 
 /**
+ * php bin/hyperf.php process:rabbit DemoConsumer >> ./runtime/logs/process.log
  * @Consumer(exchange="hyperf", queue="hyperf", routingKey="hyperf", nums=1,enable=false)
  */
 class DemoConsumer extends BaseConsumer

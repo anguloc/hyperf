@@ -42,7 +42,8 @@
         "hyperf/elasticsearch": "~1.1.0",
         "hyperf/tracer": "~1.1.0",
         "hyperf/task": "^1.1",
-        "xingwenge/canal_php": "^1.0"
+        "xingwenge/canal_php": "^1.0",
+        "sunra/php-simple-html-dom-parser": "^1.5"
     },
     "require-dev": {
         "swoft/swoole-ide-helper": "^4.2",
@@ -66,7 +67,8 @@
             "DHelper\\": "../common/"
         },
         "files": [
-            "../common/autoloader.php"
+            "../common/autoloader.php",
+            "app/Util/Helper.php"
         ]
     },
     "autoload-dev": {

@@ -45,6 +45,8 @@ abstract class ProcessCommand extends BaseCommand
      */
     protected $pool;
 
+    protected $workerId;
+
 
     public function handle()
     {
@@ -63,6 +65,7 @@ abstract class ProcessCommand extends BaseCommand
             $this->pool->on('WorkerStart', function (\Swoole\Process\Pool $pool, $worker_id) {
                 self::setProcessName("{$this->masterName}:process:worker");
                 $process = $pool->getProcess($worker_id);
+                $this->workerId = $worker_id;
                 $pid = 0;
                 if ($process instanceof Process) {
                     $pid = $process->pid;
