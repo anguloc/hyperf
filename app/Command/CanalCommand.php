@@ -54,6 +54,8 @@ class CanalCommand extends BaseCommand
 //            $client = CanalConnectorFactory::createClient(CanalClient::TYPE_SWOOLE);
 
             $client->connect(HOST_1, 22222);
+
+
             // 不知道怎么搞的 密码验证一直有问题
             // https://github.com/alibaba/canal/issues/2447
             // https://github.com/alibaba/canal/issues/1214

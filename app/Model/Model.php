@@ -17,15 +17,25 @@ use Hyperf\DbConnection\Model\Model as BaseModel;
 use Hyperf\ModelCache\Cacheable;
 use Hyperf\ModelCache\CacheableInterface;
 use Hyperf\Logger\LoggerFactory;
+use Hyperf\Database\Model\SoftDeletes;
 
+/**
+ * @method static create($data);
+ *
+ * Class Model
+ * @package App\Model
+ */
 abstract class Model extends BaseModel
 {
 //    use Cacheable;
+
+    use SoftDeletes;
 
     protected $dateFormat = "U";
 
     const CREATED_AT = 'add_time';
     const UPDATED_AT = 'update_time';
+    const DELETED_AT = 'is_deleted';
 
     /**
      * @var \Psr\Log\LoggerInterface
@@ -34,7 +44,7 @@ abstract class Model extends BaseModel
 
     public function __construct(array $attributes = [])
     {
-        $this->logger = Logger::get('model exception:', 'model');
+        $this->logger = Logger::get('model:', MODEL_LOG);
         parent::__construct($attributes);
     }
 

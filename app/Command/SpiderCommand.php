@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Command\Lib\ProcessCommand;
+use App\Command\Lib\BaseCommand;
 use App\Spider\Lib\Spider;
 use Hyperf\Command\Annotation\Command;
 use Psr\Container\ContainerInterface;
-use Swoole\Process;
-use Swoole\Timer;
 use Symfony\Component\Console\Input\InputArgument;
 
 /**
  * @Command
  */
-class SpiderCommand extends ProcessCommand
+class SpiderCommand extends BaseCommand
 {
 
     /**
@@ -46,6 +44,16 @@ class SpiderCommand extends ProcessCommand
         $this->addArgument('spider', InputArgument::REQUIRED, 'spider 类名');
     }
 
+    public function handle()
+    {
+        try {
+            $this->init();
+            $this->consumer->run();
+        } catch (\Exception $e) {
+            $this->warn("启动失败：{$e->getMessage()}");
+        }
+    }
+
     /**
      * @throws \Exception
      */
@@ -65,14 +73,6 @@ class SpiderCommand extends ProcessCommand
         if (!$this->consumer instanceof Spider) {
             throw new \Exception('错误的consumer!');
         }
-
-    }
-
-    protected function runProcess()
-    {
-        $this->consumer->stopRegister(function () {
-            Process::kill($this->masterPid, SIGTERM);
-        })->run();
 
     }
 

@@ -43,7 +43,8 @@
         "hyperf/tracer": "~1.1.0",
         "hyperf/task": "^1.1",
         "xingwenge/canal_php": "^1.0",
-        "sunra/php-simple-html-dom-parser": "^1.5"
+        "sunra/php-simple-html-dom-parser": "^1.5",
+        "jaeger/querylist": "^4.2"
     },
     "require-dev": {
         "swoft/swoole-ide-helper": "^4.2",

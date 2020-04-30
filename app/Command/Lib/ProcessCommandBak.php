@@ -33,7 +33,7 @@ use Hyperf\Amqp\Annotation\Consumer as AnnotationConsumer;
  * Class ProcessCommand
  * @package App\Command\Lib
  */
-abstract class ProcessCommand extends BaseCommand
+abstract class ProcessCommandBak extends BaseCommand
 {
 
     protected $masterPid;

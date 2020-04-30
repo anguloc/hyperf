@@ -4,27 +4,10 @@ declare(strict_types=1);
 
 namespace App\Command\Lib;
 
-use App\Amqp\Lib\BaseConsumer;
 use App\Util\Logger;
-use Co\Channel;
-use Hyperf\Amqp\Consumer;
-use Hyperf\Command\Annotation\Command;
 use Hyperf\Contract\StdoutLoggerInterface;
-use Hyperf\Di\Annotation\AnnotationCollector;
-use Hyperf\Di\Annotation\Inject;
-use Hyperf\Logger\LoggerFactory;
-use Hyperf\Process\AbstractProcess;
 use Hyperf\Utils\ApplicationContext;
-use Psr\Container\ContainerInterface;
 use Swoole\Process;
-use Swoole\Timer;
-use Symfony\Component\Console\Input\InputArgument;
-use xingwenge\canal_php\CanalConnectorFactory;
-use xingwenge\canal_php\CanalClient;
-use xingwenge\canal_php\Fmt;
-use Hyperf\DbConnection\Db;
-use Hyperf\Guzzle\ClientFactory;
-use Hyperf\Amqp\Annotation\Consumer as AnnotationConsumer;
 
 
 abstract class ProcessCommand extends BaseCommand
@@ -51,13 +34,13 @@ abstract class ProcessCommand extends BaseCommand
     public function handle()
     {
         try {
+            $this->init();
             if (static::$daemon) {
                 Process::daemon();
             }
             $this->masterPid = getmypid();
             $this->masterData['start_time'] = time();
 
-            $this->init();
             self::setProcessName($this->masterName . ':process:master');
             $nums = $this->getNumbers();
 
@@ -98,10 +81,7 @@ abstract class ProcessCommand extends BaseCommand
      *
      * @throws \Exception
      */
-    protected function runProcess()
-    {
-        throw new \Exception("需要实现runProcess方法");
-    }
+    abstract protected function runProcess();
 
     protected static function setProcessName($name)
     {
@@ -110,7 +90,7 @@ abstract class ProcessCommand extends BaseCommand
         }
     }
 
-    protected function getNumbers()
+    protected function getNumbers(): int
     {
         return $this->nums > 0 ? $this->nums : 1;
     }

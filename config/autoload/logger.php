@@ -10,6 +10,9 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf-cloud/hyperf/blob/master/LICENSE
  */
 
+defined('SPIDER_LOG') || define('SPIDER_LOG', 'spider');
+defined('MODEL_LOG') || define('MODEL_LOG', 'model');
+
 return [
     'default' => [
         'handler' => [
@@ -28,11 +31,28 @@ return [
             ],
         ],
     ],
-    'model' => [
+    MODEL_LOG => [
         'handler' => [
             'class' => Monolog\Handler\StreamHandler::class,
             'constructor' => [
                 'stream' => BASE_PATH . '/runtime/logs/model.log',
+                'level' => Monolog\Logger::DEBUG,
+            ],
+        ],
+        'formatter' => [
+            'class' => Monolog\Formatter\LineFormatter::class,
+            'constructor' => [
+                'format' => null,
+                'dateFormat' => null,
+                'allowInlineLineBreaks' => true,
+            ],
+        ],
+    ],
+    SPIDER_LOG => [
+        'handler' => [
+            'class' => Monolog\Handler\StreamHandler::class,
+            'constructor' => [
+                'stream' => BASE_PATH . '/runtime/logs/spider.log',
                 'level' => Monolog\Logger::DEBUG,
             ],
         ],

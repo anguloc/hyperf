@@ -26,11 +26,14 @@ use Hyperf\DbConnection\Db;
 use Hyperf\Guzzle\ClientFactory;
 use Psr\Log\LoggerInterface;
 use Sunra\PhpSimple\HtmlDomParser;
+use DHelper\Process\DMProcess;
+use Swoole\Coroutine\Channel;
 
 /**
  * @Command
  */
 class TestCommand extends BaseCommand
+//class TestCommand extends ProcessCommand
 {
     /**
      * @var ContainerInterface
@@ -47,7 +50,7 @@ class TestCommand extends BaseCommand
 
     const BASE_URL = 'http://www.sis001.com/forum/';
 
-    protected $nums = 1;
+    protected $nums = 2;
 
     public function __construct(ContainerInterface $container)
     {
@@ -61,9 +64,106 @@ class TestCommand extends BaseCommand
         $this->setDescription('test');
     }
 
+    public function asd(\DHelper\Process\DMProcess $p = null)
+    {
+        Timer::tick(3000, function()use($p){
+//            echo "asd\n";
+            $p->sendTo('a', 'Hello func');
+        });
+
+        $worker_id = $p->getWorkerId();
+        go(function()use($p,$worker_id){
+            while(1){
+                $l = $p->recv();
+                echo "asd[{$worker_id}]接收数据：",$l,PHP_EOL;
+            }
+        });
+
+    }
+
     public function handle()
     {
+
+
+        \Co\run(function(){
+            $chan = new \Swoole\Coroutine\Channel(30);
+            \Swoole\Coroutine::create(function () use ($chan) {
+                for($i = 0; $i < 100000; $i++) {
+                    \co::sleep(1.0);
+                    $chan->push(['rand' => rand(1000, 9999), 'index' => $i]);
+                    echo "$i\n";
+                }
+            });
+            \Swoole\Coroutine::create(function () use ($chan) {
+                while(1) {
+//                    $data = $chan->pop();
+//                    var_dump($data);
+                    echo "l:{$chan->length()}\n";
+                    \co::sleep(1.0);
+                }
+            });
+        });
+
+
+        return;
+        go(function(){
+            $q = new Channel();
+            go(function()use($q){
+
+                echo "a",$q->length(),PHP_EOL;
+                var_dump($q->isFull());
+                $q->push(1);
+                $q->push(1);
+                echo "b",$q->length(),PHP_EOL;
+                $q->pop();
+                echo "c",$q->length(),PHP_EOL;
+
+            });
+        });
+
+
+        go(function(){
+            Timer::tick(2000, function () {
+
+            });
+        });
+
+
+        return;
+
 //        $this->container->get(Producer::class)->produce($message);
+        $p = new \DHelper\Process\DMProcess();
+        $p->register('worker_1', function(DMProcess $p = null){
+            Timer::tick(5000, function()use($p){
+                $p->sendTo('worker_2', 'Hello worker_2');
+            });
+            $worker_id = $p->getWorkerId();
+            go(function()use($p,$worker_id){
+                while(1){
+                    $l = $p->recv();
+                    echo "worker_1[{$worker_id}]接收数据：",$l,PHP_EOL;
+                }
+            });
+        },2);
+        $p->register('worker_2', function(DMProcess $p = null)
+        {
+            Timer::tick(3000, function()use($p){
+                $p->sendTo('worker_1', 'Hello worker_1');
+            });
+
+            $worker_id = $p->getWorkerId();
+            go(function()use($p,$worker_id){
+                while(1){
+                    $l = $p->recv();
+                    echo "worker_2[{$worker_id}]接收数据：",$l,PHP_EOL;
+                }
+            });
+
+        },3);
+
+
+        $p->start();
+        die;
         set_error_handler(function () {
 //            print_r(func_get_args());
             echo "error\r";
@@ -91,8 +191,8 @@ class TestCommand extends BaseCommand
                 curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
                 $output = curl_exec($curl);
                 $output = curl_getinfo($curl);
-var_dump($output);
-die;
+                var_dump($output);
+                die;
 //                return curl_errno($curl);
                 curl_close($curl);
                 // $output = json_decode($output,true);
@@ -130,11 +230,11 @@ die;
             $resp = $client->get("https://www.zhipin.com/c101280600-p100103/%E5%8D%97%E5%B1%B1%E5%8C%BA/");
 //            $resp = $client->get("http://l.cn", [\GuzzleHttp\RequestOptions::ALLOW_REDIRECTS => false]);
 //            print_r($resp->getHeaders());
-            file_put_contents('a.log',$resp->getBody()->getContents());
-die;
+            file_put_contents('a.log', $resp->getBody()->getContents());
+            die;
             $resp = $client->get("https://www.zhipin.com/web/common/security-check.html?seed=2t%2BIsPTPJ4rV%2FkDu4%2BYQ3aX5I7MdONt6LDwVyqMxwxE%3D&name=f5e6fed3&ts=1585722606822&callbackUrl=%2Fc101280600-p100103%2F%25e5%258d%2597%25e5%25b1%25b1%25e5%258c%25ba%2F&srcReferer=");
             print_r($resp->getHeaders());
-die;
+            die;
 
             $a = microtime(true);
             $file = 'a.log';
@@ -173,4 +273,52 @@ die;
 
     }
 
+
+    protected function runProcess()
+    {
+        if ($this->workerId == 0) {
+            \Swoole\Timer::tick(3000, function () {
+                $process = $this->pool->getProcess($this->workerId);
+                $pid = $process->pid;
+//                echo "main:{$pid}\n";
+                /** @var \Swoole\Process $p */
+                $p = $this->pool->getProcess(1);
+                $sock = $p->exportSocket();
+                $sock->send("Hello task");
+                echo "task向main写数据\n";
+            });
+
+            go(function(){
+                /** @var \Swoole\Process $p */
+                $p = $this->pool->getProcess(0);
+                $sock = $p->exportSocket();
+                while(1){
+                    $data = $sock->recv();
+                    echo "main:接收到数据：{$data}\n";
+                }
+            });
+
+        } else {
+            \Swoole\Timer::tick(4000, function () {
+                $process = $this->pool->getProcess($this->workerId);
+                $pid = $process->pid;
+//                echo "task:{$pid}\n";
+
+                /** @var \Swoole\Process $p */
+                $p = $this->pool->getProcess(0);
+                $sock = $p->exportSocket();
+                $sock->send("Hello main");
+                echo "task向main写数据\n";
+            });
+            go(function(){
+                /** @var \Swoole\Process $p */
+                $p = $this->pool->getProcess(1);
+                $sock = $p->exportSocket();
+                while(1){
+                    $data = $sock->recv();
+                    echo "task:接收到数据：{$data}\n";
+                }
+            });
+        }
+    }
 }
