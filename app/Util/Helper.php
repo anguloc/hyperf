@@ -1,9 +1,7 @@
 <?php
 
-use Swoole\Websocket\Frame;
 use Hyperf\Server\ServerFactory;
 use Hyperf\Utils\ApplicationContext;
-use Swoole\WebSocket\Server as WebSocketServer;
 use Hyperf\Guzzle\ClientFactory;
 
 if (!function_exists('container')) {
@@ -24,20 +22,8 @@ if (!function_exists('server')) {
         return container()->get(ServerFactory::class)->getServer()->getServer();
     }
 }
-if (!function_exists('frame')) {
-    function frame()
-    {
-        return container()->get(Frame::class);
-    }
-}
-if (!function_exists('websocket')) {
-    function websocket()
-    {
-        return container()->get(WebSocketServer::class);
-    }
-}
 if (!function_exists('guzzle')) {
-    function guzzle(array $options = []):\GuzzleHttp\Client
+    function guzzle(array $options = []): \GuzzleHttp\Client
     {
         $o = [
             // Disable exception

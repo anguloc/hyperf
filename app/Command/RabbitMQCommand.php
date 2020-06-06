@@ -29,6 +29,10 @@ class RabbitMQCommand extends ProcessCommand
     protected $baseConsumerPath = 'App\Amqp\Consumer\\';
 
     protected $consumerAnnotation;
+
+    /**
+     * @var BaseConsumer
+     */
     protected $consumer;
 
     public function __construct(ContainerInterface $container)
@@ -80,7 +84,14 @@ class RabbitMQCommand extends ProcessCommand
 
     protected function runProcess()
     {
-        $this->container->get(Consumer::class)->consume($this->consumer);
+        if ($this->consumer->isCoroutine()) {
+            $this->container->get(Consumer::class)->consume($this->consumer);
+        }else{
+            go(function(){
+                $this->container->get(Consumer::class)->consume($this->consumer);
+            });
+        }
+
     }
 
 

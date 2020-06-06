@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+
 /**
  * This file is part of Hyperf.
  *
@@ -20,17 +21,29 @@ return [
             'name' => 'http',
             'type' => Server::SERVER_HTTP,
             'host' => '0.0.0.0',
-            'port' => 9502,
+            'port' => defined('PORT_8') ? PORT_8 : 0,
             'sock_type' => SWOOLE_SOCK_TCP,
             'callbacks' => [
                 SwooleEvent::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
+            ],
+        ],
+        [
+            'name' => 'ws',
+            'type' => Server::SERVER_WEBSOCKET,
+            'host' => '0.0.0.0',
+            'port' => defined('PORT_9') ? PORT_9 : 0,
+            'sock_type' => SWOOLE_SOCK_TCP,
+            'callbacks' => [
+                SwooleEvent::ON_HAND_SHAKE => [Hyperf\WebSocketServer\Server::class, 'onHandShake'],
+                SwooleEvent::ON_MESSAGE => [Hyperf\WebSocketServer\Server::class, 'onMessage'],
+                SwooleEvent::ON_CLOSE => [Hyperf\WebSocketServer\Server::class, 'onClose'],
             ],
         ],
     ],
     'settings' => [
         'enable_coroutine' => true,
         'worker_num' => swoole_cpu_num(),
-        'pid_file' => BASE_PATH . '/runtime/hyperf.pid',
+        'pid_file' => BASE_PATH . '/runtime/pid.pid',
         'open_tcp_nodelay' => true,
         'max_coroutine' => 100000,
         'open_http2_protocol' => true,
@@ -38,6 +51,10 @@ return [
         'socket_buffer_size' => 2 * 1024 * 1024,
         'task_worker_num' => 2,
         'task_enable_coroutine' => false,
+
+        'heartbeat_check_interval' => 60,
+        'heartbeat_idle_time' => 120,
+        'max_connection' => 100000,
     ],
     'callbacks' => [
         SwooleEvent::ON_BEFORE_START => [Hyperf\Framework\Bootstrap\ServerStartCallback::class, 'beforeStart'],

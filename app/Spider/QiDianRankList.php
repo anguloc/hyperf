@@ -70,6 +70,8 @@ class QiDianRankList extends AbstractSpider implements Spider
     public function run()
     {
         try {
+            $this->index();
+            return;
             \Swoole\Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
             \Swoole\Coroutine\Run([$this, 'doRun']);
         } catch (\Throwable $e) {
@@ -256,14 +258,21 @@ class QiDianRankList extends AbstractSpider implements Spider
 
     protected function index()
     {
-        $files = $this->finder->files()->in([
-            self::$tempDir . self::BASE_STEP,
-            self::$tempDir . self::CATE_STEP,
-            self::$tempDir . self::SUB_CATE_STEP,
-        ])->name("*.html");
+//        $files = $this->finder->files()->in([
+//            self::$tempDir . self::BASE_STEP,
+//            self::$tempDir . self::CATE_STEP,
+//            self::$tempDir . self::SUB_CATE_STEP,
+//        ])->name("*.html");
 
         $books = [];
         $m = new SpidersNovelRank();
+
+
+        SpidersNovelRank::create(['nid' => 1,'title' => 123]);
+
+        SpidersNovelRank::firstOrCreate(['nid' => 3123213,'title' => 42342]);
+
+        return ;
 
         $time = time();
         foreach ($files as $file) {

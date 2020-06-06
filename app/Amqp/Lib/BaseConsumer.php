@@ -16,4 +16,12 @@ abstract class BaseConsumer extends ConsumerMessage
     ];
 
     protected $type = Type::DIRECT; // exchange 用 direct
+
+    protected $coroutine = false;
+
+
+    public function isCoroutine()
+    {
+        return $this->coroutine;
+    }
 }

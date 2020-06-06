@@ -13,3 +13,9 @@ declare(strict_types=1);
 use Hyperf\HttpServer\Router\Router;
 
 Router::addRoute(['GET', 'POST', 'HEAD'], '/', 'App\Controller\IndexController@index');
+Router::addRoute(['GET', 'POST'], '/getToken', 'App\Controller\IndexController@getToken');
+Router::addRoute(['GET', 'POST'], '/sendToUid', 'App\Controller\WSAdminController@sendToUid');
+
+Router::addServer('ws', function () {
+    Router::get('/', App\WebSocket\RegisterService::class);
+});

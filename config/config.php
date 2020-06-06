@@ -27,4 +27,5 @@ return [
             LogLevel::WARNING,
         ],
     ],
+    'server_id' => env('SERVER_ID', '1'),
 ];

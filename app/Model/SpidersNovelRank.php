@@ -25,7 +25,10 @@ class SpidersNovelRank extends Model
      *
      * @var array
      */
-    protected $fillable = ['nid','title'];
+    protected $fillable = [
+        'nid',
+        'title',
+    ];
     /**
      * The attributes that should be cast to native types.
      *

@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 defined('SPIDER_LOG') || define('SPIDER_LOG', 'spider');
 defined('MODEL_LOG') || define('MODEL_LOG', 'model');
+defined('WS_LOG') || define('WS_LOG', 'ws');
 
 return [
     'default' => [
@@ -53,6 +54,23 @@ return [
             'class' => Monolog\Handler\StreamHandler::class,
             'constructor' => [
                 'stream' => BASE_PATH . '/runtime/logs/spider.log',
+                'level' => Monolog\Logger::DEBUG,
+            ],
+        ],
+        'formatter' => [
+            'class' => Monolog\Formatter\LineFormatter::class,
+            'constructor' => [
+                'format' => null,
+                'dateFormat' => null,
+                'allowInlineLineBreaks' => true,
+            ],
+        ],
+    ],
+    WS_LOG => [
+        'handler' => [
+            'class' => Monolog\Handler\StreamHandler::class,
+            'constructor' => [
+                'stream' => BASE_PATH . '/runtime/logs/ws.log',
                 'level' => Monolog\Logger::DEBUG,
             ],
         ],
