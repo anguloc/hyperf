@@ -17,9 +17,9 @@ return [
     'app_name' => env('APP_NAME', 'skeleton'),
     StdoutLoggerInterface::class => [
         'log_level' => [
-            LogLevel::ALERT,
-            LogLevel::CRITICAL,
-            LogLevel::DEBUG,
+//            LogLevel::ALERT,
+//            LogLevel::CRITICAL,
+//            LogLevel::DEBUG,
             LogLevel::EMERGENCY,
             LogLevel::ERROR,
             LogLevel::INFO,

@@ -37,9 +37,4 @@ class SpidersNovelRank extends Model
     protected $casts = ['id' => 'int', 'nid' => 'integer', 'add_time' => 'integer', 'is_deleted' => 'integer'];
 
     const UPDATED_AT = null;
-
-    public function a()
-    {
-
-    }
 }

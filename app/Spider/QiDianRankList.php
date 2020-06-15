@@ -70,8 +70,6 @@ class QiDianRankList extends AbstractSpider implements Spider
     public function run()
     {
         try {
-            $this->index();
-            return;
             \Swoole\Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
             \Swoole\Coroutine\Run([$this, 'doRun']);
         } catch (\Throwable $e) {
@@ -84,21 +82,27 @@ class QiDianRankList extends AbstractSpider implements Spider
         $this->init();
 
         Timer::tick(5000, function ($id) {
-            self::log("定时检测：parse：{$this->parseQueue->length()},spider：{$this->spiderQueue->length()}");
+//            self::log("定时检测：parse：{$this->parseQueue->length()},spider：{$this->spiderQueue->length()}");
             if ($this->parseQueue->isEmpty() && $this->spiderQueue->isEmpty()) {
                 $this->sleepChan->push(1);
                 Timer::clear($id);
             }
         });
         while (!$r = $this->sleepChan->pop(2)) {
+            for ($i = 1; $i <= 2; $i++) {
+                go(function () {
+                    try {
+                        $this->spider();
+                    } catch (\Throwable $e) {
+                    }
+                });
+            }
+
             go(function () {
-                $this->spider();
-            });
-            go(function () {
-                $this->spider();
-            });
-            go(function () {
-                $this->parse();
+                try {
+                    $this->parse();
+                } catch (\Throwable $e) {
+                }
             });
         }
 
@@ -258,21 +262,17 @@ class QiDianRankList extends AbstractSpider implements Spider
 
     protected function index()
     {
-//        $files = $this->finder->files()->in([
-//            self::$tempDir . self::BASE_STEP,
-//            self::$tempDir . self::CATE_STEP,
-//            self::$tempDir . self::SUB_CATE_STEP,
-//        ])->name("*.html");
+        $this->finder = new Finder();
+        $this->ql = new QueryList();
+        $this->fs = new Filesystem(new Local(self::$tempDir), ['disable_asserts' => true]);
+        $files = $this->finder->files()->in([
+            self::$tempDir . self::BASE_STEP,
+            self::$tempDir . self::CATE_STEP,
+            self::$tempDir . self::SUB_CATE_STEP,
+        ])->name("*.html");
 
         $books = [];
-        $m = new SpidersNovelRank();
-
-
-        SpidersNovelRank::create(['nid' => 1,'title' => 123]);
-
-        SpidersNovelRank::firstOrCreate(['nid' => 3123213,'title' => 42342]);
-
-        return ;
+        $line_time = mktime(1, 0, 0, date("m"), date("d"), date("Y"));
 
         $time = time();
         foreach ($files as $file) {
@@ -281,15 +281,32 @@ class QiDianRankList extends AbstractSpider implements Spider
             }
 
             $data = $this->ql->setHtml($html)->rules([
-                'title' => ['a[class=name]', 'text'],
                 'nid' => ['a[class=name]', 'data-bid'],
+                'title' => ['a[class=name]', 'text'],
+                'line_time' => ['a[class=name]', 'data-bid', '', function () use ($line_time) {
+                    return $line_time;
+                }],
+                'add_time' => ['a[class=name]', 'text', '', function () use ($time) {
+                    return $time;
+                }],
             ])->range('.book-text>.rank-table-list tbody tr')->query()->getData()->all();
 
             $books = array_column($data, null, 'nid') + $books;
+            $this->clearHtml();
+        }
+
+
+        $list = array_chunk($books, 500);
+        foreach ($list as $item) {
+            try {
+                SpidersNovelRank::insertOnDuplicateKey($item);
+            } catch (\Throwable $e) {
+
+            }
         }
 
         $this->fs->put('index.cache', json_encode($books, JSON_UNESCAPED_UNICODE));
-        $this->clearHtml();
+
     }
 
     protected function clearHtml()
