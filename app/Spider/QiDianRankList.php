@@ -73,12 +73,10 @@ class QiDianRankList extends AbstractSpider implements Spider
     public function run()
     {
         try {
-            $this->books();
-            return;
             \Swoole\Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
             \Swoole\Coroutine\Run([$this, 'doRun']);
         } catch (\Throwable $e) {
-            self::log("起点排行榜统计失败,msg:{$e->getMessage()}");
+            self::log("起点排行榜统计失败,file:{$e->getFile()},line:{$e->getLine()},msg:{$e->getMessage()}");
         }
     }
 
@@ -123,7 +121,8 @@ class QiDianRankList extends AbstractSpider implements Spider
 
         $this->novel();
 
-        // TODO clear file
+        // clear file
+        $this->clearFile();
 
         self::log("排行榜任务结束，时间：" . (microtime(true) - $this->startTime));
     }
@@ -533,6 +532,46 @@ class QiDianRankList extends AbstractSpider implements Spider
         }
 
         return;
+    }
+
+    protected function clearFile()
+    {
+        // 移除备份的   备份当天的
+        $source = 'qidian';
+        $bak = 'qidian_bak';
+
+        $fs = new Filesystem(new Local(self::$tempDir . '../'), ['disable_asserts' => true]);
+
+        $a = $fs->listContents();
+
+        $b = $fs->has("asd");
+
+        if ($fs->has($bak)) {
+            try {
+                $b = $fs->deleteDir($bak);
+            } catch (\Throwable $e) {
+                $b = false;
+                self::log("排行榜爬虫删除备份失败,ex:{$e->getMessage()},file:{$e->getFile()},line:{$e->getLine()}");
+            }
+            if (!$b) {
+                self::log("排行榜爬虫删除备份失败");
+            }
+        }
+
+        if ($fs->has($source)) {
+            try {
+                if ($fs->has($bak)) {
+                    $bak = $bak . '_' . date('Ymd');
+                }
+                $fs->rename($source, $bak);
+            } catch (\Throwable $e) {
+                $b = false;
+                self::log("排行榜爬虫备份当天数据失败,ex:{$e->getMessage()},file:{$e->getFile()},line:{$e->getLine()}");
+            }
+            if (!$b) {
+                self::log("排行榜爬虫备份当天数据失败");
+            }
+        }
     }
 
     protected function clearHtml()
