@@ -207,7 +207,7 @@ abstract class Model extends BaseModel
 {
 //    use Cacheable;
 
-    use SoftDeletes;
+//    use SoftDeletes;
 
     protected $dateFormat = "U";
 

@@ -6,19 +6,21 @@ namespace App\Model;
 /**
  * @property int $id 
  * @property int $nid 
- * @property string $option 
- * @property string $value 
+ * @property int $month_ticket 
+ * @property int $rec_ticket 
+ * @property int $reward 
+ * @property int $line_time 
  * @property int $add_time 
  * @property int $is_deleted 
  */
-class SpidersNovelOption extends Model
+class SpidersNovelStatistic extends Model
 {
     /**
      * The table associated with the model.
      *
      * @var string
      */
-    protected $table = 'spiders_novel_options';
+    protected $table = 'spiders_novel_statistics';
     /**
      * The attributes that are mass assignable.
      *
@@ -30,8 +32,7 @@ class SpidersNovelOption extends Model
      *
      * @var array
      */
-    protected $casts = ['id' => 'int', 'nid' => 'integer', 'add_time' => 'integer', 'is_deleted' => 'integer'];
+    protected $casts = ['id' => 'int', 'nid' => 'integer', 'month_ticket' => 'integer', 'rec_ticket' => 'integer', 'reward' => 'integer', 'line_time' => 'integer', 'add_time' => 'integer', 'is_deleted' => 'integer'];
 
-    const TAGS_OPTION = 'tag';
-    const CUSTOM_TAGS_OPTION = 'custom_tags';
+
 }

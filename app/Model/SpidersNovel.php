@@ -32,4 +32,16 @@ class SpidersNovel extends Model
      * @var array
      */
     protected $casts = ['id' => 'int', 'add_time' => 'integer', 'is_deleted' => 'integer'];
+
+    const QIDIAN = 'qidian_';
+
+    public static function getNovelKey($key, $prefix = self::QIDIAN)
+    {
+        return $prefix . $key;
+    }
+
+    public static function restoreNovelKey($key, $prefix = self::QIDIAN)
+    {
+        return str_replace($prefix, '', $key);
+    }
 }

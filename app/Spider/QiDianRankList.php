@@ -2,7 +2,10 @@
 
 namespace App\Spider;
 
+use App\Model\SpidersNovel;
+use App\Model\SpidersNovelOption;
 use App\Model\SpidersNovelRank;
+use App\Model\SpidersNovelStatistic;
 use App\Spider\Lib\AbstractSpider;
 use App\Spider\Lib\Spider;
 use Symfony\Component\Finder\Finder;
@@ -70,6 +73,8 @@ class QiDianRankList extends AbstractSpider implements Spider
     public function run()
     {
         try {
+            $this->books();
+            return;
             \Swoole\Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
             \Swoole\Coroutine\Run([$this, 'doRun']);
         } catch (\Throwable $e) {
@@ -106,10 +111,21 @@ class QiDianRankList extends AbstractSpider implements Spider
             });
         }
 
+        self::log("排行榜抓取结束，时间：" . (microtime(true) - $this->startTime));
 
         $this->index();
 
-        self::log("排行榜抓取结束，时间：" . (microtime(true) - $this->startTime));
+        self::log("排行榜解析结束，时间：" . (microtime(true) - $this->startTime));
+
+        $this->books();
+
+        self::log("排行榜单本抓取结束，时间：" . (microtime(true) - $this->startTime));
+
+        $this->novel();
+
+        // TODO clear file
+
+        self::log("排行榜任务结束，时间：" . (microtime(true) - $this->startTime));
     }
 
     protected function init()
@@ -262,9 +278,9 @@ class QiDianRankList extends AbstractSpider implements Spider
 
     protected function index()
     {
-        $this->finder = new Finder();
-        $this->ql = new QueryList();
-        $this->fs = new Filesystem(new Local(self::$tempDir), ['disable_asserts' => true]);
+        $this->finder = $this->finder ?? new Finder();
+        $this->ql = $this->ql ?? new QueryList();
+        $this->fs = $this->fs ?? new Filesystem(new Local(self::$tempDir), ['disable_asserts' => true]);
         $files = $this->finder->files()->in([
             self::$tempDir . self::BASE_STEP,
             self::$tempDir . self::CATE_STEP,
@@ -296,17 +312,227 @@ class QiDianRankList extends AbstractSpider implements Spider
         }
 
 
-        $list = array_chunk($books, 500);
-        foreach ($list as $item) {
-            try {
-                SpidersNovelRank::insertOnDuplicateKey($item);
-            } catch (\Throwable $e) {
-
+        $exist = SpidersNovelRank::where([
+            'line_time' => $line_time,
+            'is_deleted' => NOT_DELETE_STATUS,
+        ])->first('id');
+        if (!$exist) {
+            $list = array_chunk($books, 500);
+            // 排行榜
+            foreach ($list as $item) {
+                try {
+                    SpidersNovelRank::insertOnDuplicateKey($item);
+                } catch (\Throwable $e) {
+                    self::log("排行榜入库失败{$e->getMessage()}");
+                }
             }
         }
 
         $this->fs->put('index.cache', json_encode($books, JSON_UNESCAPED_UNICODE));
+    }
 
+    protected function books()
+    {
+        $this->finder = $this->finder ?? new Finder();
+        $this->ql = $this->ql ?? new QueryList();
+        $this->fs = $this->fs ?? new Filesystem(new Local(self::$tempDir), ['disable_asserts' => true]);
+        $this->client = $this->client ?? guzzle([
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
+                ],
+            ]);
+
+
+        $data = $this->fs->read('index.cache');
+        $data = json_decode($data, true);
+        $count = count($data);
+        if ($count <= 0) {
+            self::log("起点排行榜数据错误");
+            return false;
+        }
+        $chan = new Channel($count);
+        $sleep_chan = new Channel(1);
+        foreach ($data as $item) {
+            $chan->push($item);
+        }
+
+        $spider = function () use ($chan) {
+            if ($chan->isEmpty()) {
+                return false;
+            }
+            $data = $chan->pop(2);
+            if (empty($data) || !isset($data['nid'])) {
+                return false;
+            }
+            $nid = $data['nid'];
+            $url = "https://book.qidian.com/info/{$nid}";
+            $resp = $this->client->get($url);
+            if ($resp->getStatusCode() != 200) {
+                $content = '';
+                if ($resp->getBody()) {
+                    $content = $resp->getBody()->getContents();
+                }
+                self::log("http error,url:{$url},content:{$content}");
+                return false;
+            }
+            $filename = "books/{$nid}_book.html";
+            $html = $resp->getBody()->getContents();
+            if (!$this->fs->put($filename, $html)) {
+                self::log("nid:{$nid}, file error");
+            }
+            return true;
+        };
+
+        while (!$sleep_chan->pop(2)) {
+            for ($i = 1; $i <= 2; $i++) {
+                go(function () use ($spider) {
+                    try {
+                        call_user_func($spider);
+                    } catch (\Throwable $e) {
+                        echo "error", PHP_EOL;
+                    }
+                });
+            }
+            if ($chan->isEmpty()) {
+                $sleep_chan->push(1);
+            }
+        }
+
+        return true;
+    }
+
+    protected function novel()
+    {
+        $files = (new Finder())->files()->in([
+            self::$tempDir . '/books',
+        ])->name("*.html");
+
+        $ql = new QueryList();
+        $line_time = mktime(1, 0, 0, date("m"), date("d"), date("Y"));
+
+        $novels = SpidersNovel::where('is_deleted', NOT_DELETE_STATUS)->get()->all();
+
+        $raw_options = SpidersNovelOption::where('is_deleted', NOT_DELETE_STATUS)->get()->all();
+
+        $statistics_exist = SpidersNovelStatistic::where([
+            'line_time' => $line_time,
+            'is_deleted' => NOT_DELETE_STATUS,
+        ])->first('id');
+
+        $options = [];
+        foreach ($raw_options as $option) {
+            if (!$option instanceof SpidersNovelOption) {
+                continue;
+            }
+            if (!isset($options[$option['nid']])) {
+                $options[$option['nid']] = [
+                    SpidersNovelOption::TAGS_OPTION => [],
+                    SpidersNovelOption::CUSTOM_TAGS_OPTION => [],
+                ];
+            }
+            $options[$option['nid']][$option['option']][] = $option->getAttributes();
+        }
+
+        $novels = array_column($novels, null, 'key');
+
+        foreach ($novels as $key => $novel) {
+            $novels[$key]['options'] = $options[$novel['id']] ?? [];
+        }
+
+        $time = time();
+        $statistics = $insert_tags = [];
+        foreach ($files as $file) {
+            if (!$file instanceof \Symfony\Component\Finder\SplFileInfo || !$html = $file->getContents()) {
+                continue;
+            }
+
+            $ql = $ql->setHtml($html);
+
+            $nid = str_replace('_book.html', '', $file->getFilename());
+            $title = $ql->find(".book-info>h1>em")->text();
+            $tags = $ql->find(".book-info>p.tag>a")->map(function (\QL\Dom\Elements $i) {
+                return $i->text();
+            })->all();
+            $month = $ql->find(".fans-interact #monthCount")->text();
+            $rec = $ql->find(".fans-interact #recCount")->text();
+            $reward = $ql->find(".fans-interact #rewardNum")->text();
+            $custom_tags = $ql->find(".tag-wrap a")->map(function (\QL\Dom\Elements $i) {
+                return $i->text();
+            })->all();
+
+            // novel
+            if (!isset($novels[SpidersNovel::getNovelKey($nid)])) {
+                try {
+                    $novel_id = SpidersNovel::insertGetId([
+                        'title' => $title,
+                        'url' => "https://book.qidian.com/info/{$nid}",
+                        'key' => SpidersNovel::getNovelKey($nid),
+                        'add_time' => time(),
+                    ]);
+                    $novels_options = [];
+                } catch (\Throwable $e) {
+                    self::log("insert novel error-{$nid}");
+                    continue;
+                }
+            } else {
+                $novel_id = $novels[SpidersNovel::getNovelKey($nid)]['id'];
+                $novels_options = $novels[SpidersNovel::getNovelKey($nid)]['options'] ?? [];
+            }
+
+            // novel option
+            $tags_options = $novels_options[SpidersNovelOption::TAGS_OPTION] ?? [];
+            $custom_tags_options = $novels_options[SpidersNovelOption::CUSTOM_TAGS_OPTION] ?? [];
+
+            $insert_tags = array_merge($insert_tags, array_map(function ($item) use ($novel_id, $time) {
+                return [
+                    'nid' => $novel_id,
+                    'option' => SpidersNovelOption::TAGS_OPTION,
+                    'value' => $item,
+                    'add_time' => $time,
+                ];
+            }, array_diff($tags, array_column($tags_options, 'value'))));
+
+            $insert_tags = array_merge($insert_tags, array_map(function ($item) use ($novel_id, $time) {
+                return [
+                    'nid' => $novel_id,
+                    'option' => SpidersNovelOption::CUSTOM_TAGS_OPTION,
+                    'value' => $item,
+                    'add_time' => $time,
+                ];
+            }, array_diff($custom_tags, array_column($custom_tags_options, 'value'))));
+
+            // statistics
+            if (!$statistics_exist) {
+                $statistics[] = [
+                    'nid' => $novel_id,
+                    'month_ticket' => (int)$month,
+                    'rec_ticket' => (int)$rec,
+                    'reward' => (int)$reward,
+                    'line_time' => $line_time,
+                    'add_time' => $time,
+                ];
+            }
+        }
+
+        $list = array_chunk($insert_tags, 500);
+        foreach ($list as $item) {
+            try {
+                SpidersNovelOption::insertOnDuplicateKey($item);
+            } catch (\Throwable $e) {
+                self::log("标签入库失败{$e->getMessage()}");
+            }
+        }
+
+        $list = array_chunk($statistics, 500);
+        foreach ($list as $item) {
+            try {
+                SpidersNovelStatistic::insertOnDuplicateKey($item);
+            } catch (\Throwable $e) {
+                self::log("统计入库失败{$e->getMessage()}");
+            }
+        }
+
+        return;
     }
 
     protected function clearHtml()
