@@ -172,11 +172,7 @@ class QiDianRankList extends AbstractSpider implements Spider
         }
         $resp = $this->client->get($url);
         if ($resp->getStatusCode() != 200) {
-            $content = '';
-            if ($resp->getBody()) {
-                $content = $resp->getBody()->getContents();
-            }
-            self::log("http error,url:{$url},content:{$content}");
+            self::log("http error,url:{$url},content:{$resp->getStatusCode()}");
             return;
         }
         $filename = $data['filename'] ?? 'tmp.log';
@@ -341,19 +337,35 @@ class QiDianRankList extends AbstractSpider implements Spider
                 ],
             ]);
 
+        $novels = SpidersNovel::query()->where('is_deleted', NOT_DELETE_STATUS)->get('key');
 
-        $data = $this->fs->read('index.cache');
-        $data = json_decode($data, true);
-        $count = count($data);
+        $count = count($novels);
         if ($count <= 0) {
             self::log("起点排行榜数据错误");
             return false;
         }
         $chan = new Channel($count);
         $sleep_chan = new Channel(1);
-        foreach ($data as $item) {
-            $chan->push($item);
+        foreach ($novels as $novel) {
+            $item = SpidersNovel::restoreNovelKey($novel['key']);
+            if (empty($item)) {
+                continue;
+            }
+            $chan->push(['nid' => $item,]);
         }
+
+//        $data = $this->fs->read('index.cache');
+//        $data = json_decode($data, true);
+//        $count = count($data);
+//        if ($count <= 0) {
+//            self::log("起点排行榜数据错误");
+//            return false;
+//        }
+//        $chan = new Channel($count);
+//        $sleep_chan = new Channel(1);
+//        foreach ($data as $item) {
+//            $chan->push($item);
+//        }
 
         $spider = function () use ($chan) {
             if ($chan->isEmpty()) {
@@ -367,11 +379,7 @@ class QiDianRankList extends AbstractSpider implements Spider
             $url = "https://book.qidian.com/info/{$nid}";
             $resp = $this->client->get($url);
             if ($resp->getStatusCode() != 200) {
-                $content = '';
-                if ($resp->getBody()) {
-                    $content = $resp->getBody()->getContents();
-                }
-                self::log("http error,url:{$url},content:{$content}");
+                self::log("http error,url:{$url},code:{$resp->getStatusCode()}");
                 return false;
             }
             $filename = "books/{$nid}_book.html";
@@ -383,7 +391,7 @@ class QiDianRankList extends AbstractSpider implements Spider
         };
 
         while (!$sleep_chan->pop(2)) {
-            for ($i = 1; $i <= 2; $i++) {
+            for ($i = 1; $i <= 6; $i++) {
                 go(function () use ($spider) {
                     try {
                         call_user_func($spider);
