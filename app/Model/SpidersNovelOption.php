@@ -32,6 +32,6 @@ class SpidersNovelOption extends Model
      */
     protected $casts = ['id' => 'int', 'nid' => 'integer', 'add_time' => 'integer', 'is_deleted' => 'integer'];
 
-    const TAGS_OPTION = 'tag';
+    const TAGS_OPTION = 'tags';
     const CUSTOM_TAGS_OPTION = 'custom_tags';
 }
