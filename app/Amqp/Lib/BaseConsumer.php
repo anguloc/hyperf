@@ -19,9 +19,16 @@ abstract class BaseConsumer extends ConsumerMessage
 
     protected $coroutine = false;
 
+    protected $nums = 1;
+
 
     public function isCoroutine()
     {
         return $this->coroutine;
+    }
+
+    public function getWorkerNum()
+    {
+        return $this->nums;
     }
 }

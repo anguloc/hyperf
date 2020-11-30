@@ -28,6 +28,7 @@ if (!function_exists('guzzle')) {
         $o = [
             // Disable exception
             GuzzleHttp\RequestOptions::HTTP_ERRORS => false,
+            GuzzleHttp\RequestOptions::CONNECT_TIMEOUT => 5,
         ];
         $options = array_merge($o, $options);
         return container()->get(ClientFactory::class)->create($options);

@@ -6,8 +6,6 @@ namespace App\Model;
 
 use App\Util\Logger;
 use Hyperf\DbConnection\Model\Model as BaseModel;
-use Hyperf\ModelCache\Cacheable;
-use Hyperf\ModelCache\CacheableInterface;
 use Hyperf\Logger\LoggerFactory;
 use Hyperf\Database\Model\SoftDeletes;
 use Illuminate\Support\Arr;

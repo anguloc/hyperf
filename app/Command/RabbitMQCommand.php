@@ -79,17 +79,24 @@ class RabbitMQCommand extends ProcessCommand
         if ($this->consumerAnnotation->queue) {
             $this->consumer->setQueue($this->consumerAnnotation->queue);
         }
-        $this->nums = $this->consumerAnnotation->nums ?: 1;
+        $this->nums = $this->consumer->getWorkerNum();
+        if ($this->nums <= 0) {
+            $this->nums = $this->consumerAnnotation->nums ?: 1;
+        }
     }
 
     protected function runProcess()
     {
-        if ($this->consumer->isCoroutine()) {
-            $this->container->get(Consumer::class)->consume($this->consumer);
-        }else{
-            go(function(){
+        try {
+            if ($this->consumer->isCoroutine()) {
                 $this->container->get(Consumer::class)->consume($this->consumer);
-            });
+            } else {
+                go(function () {
+                    $this->container->get(Consumer::class)->consume($this->consumer);
+                });
+            }
+        }catch (\Throwable $e) {
+            self::log('file:'.$e->getFile().'，msg:'.$e->getMessage());
         }
 
     }

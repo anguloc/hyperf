@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Amqp\Consumer\SpiderConsumer;
 use App\Amqp\Producer\MinuteProducer;
 use App\Command\Lib\BaseCommand;
 use App\Command\Lib\ProcessCommand;
@@ -14,6 +15,7 @@ use App\Util\Logger;
 use App\WebSocket\Conf\Route;
 use App\WebSocket\Controller\Home;
 use App\WebSocket\Lib\Packet;
+use QL\QueryList;
 use Swoole\Coroutine\Context;
 use DHelper\RabbitMQ\RabbitMQTask;
 use Doctrine\Common\Annotations\AnnotationReader;
@@ -41,6 +43,7 @@ use Sunra\PhpSimple\HtmlDomParser;
 use DHelper\Process\DMProcess;
 use Swoole\Coroutine\Channel;
 use Hyperf\WebSocketClient\ClientFactory as WSClientFactory;
+use Symfony\Component\Finder\Finder;
 
 /**
  * @Command
@@ -192,6 +195,18 @@ class TestCommand extends BaseCommand
     {
 
 
+        $data = [
+            'url' => 'http://www.gkfk5.cn',
+        ];
+        $m = new SpiderConsumer();
+        $ret = $m->consume($data);
+        return $ret;
+
+        return;
+
+        $this->dsad();
+
+        return;
         go(function(){
             $con = \Swoole\Coroutine::getContext();
             $a = $con['asd'] ?? null;
@@ -621,5 +636,38 @@ class TestCommand extends BaseCommand
                 }
             });
         }
+    }
+
+    function br2nl($string)
+    {
+        return preg_replace('/\<br(\s*)?\/?\>/i', "\n", $string);
+    }
+
+    public function dsad()
+    {
+
+        $ql = new QueryList();
+
+        $finder = new Finder();
+
+        $files = $finder->files()->in([
+            BASE_PATH . '/runtime/temp/dd',
+        ])->name("*.html");
+
+        foreach ($files as $k=>$file) {
+            if (!$file instanceof \Symfony\Component\Finder\SplFileInfo || !$html = $file->getContents()) {
+                continue;
+            }
+            $html = $file->getContents();
+            $html =$this->br2nl($html);
+            $html = strip_tags($html);
+
+            file_put_contents($k . '.txt',$html);
+
+
+        }
+
+        echo 1;
+        die;
     }
 }

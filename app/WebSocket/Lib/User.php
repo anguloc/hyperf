@@ -15,10 +15,12 @@ class User
 {
     const ADMIN_USER = -1;// admin
     const Z_USER = -2;
+    const X_USER = -3;
 
     protected static $map = [
         '7b2e9f54cdff413fcde01f330af6896c3cd7e6cd' => self::ADMIN_USER,
         'f4f803e882dd4d6efb07041f9fabd00805c47f87' => self::Z_USER,
+        'fa60ce20b1442fcdbaa626556aa6cc2afed028ba' => self::X_USER,
     ];
 
     /**
