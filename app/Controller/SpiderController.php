@@ -36,14 +36,14 @@ class SpiderController extends AbstractController
                 return create_return(ERROR_CODE, 'param missing');
             }
 
-            $id = SpidersTask::insertGetId([
-                'content' => json_encode($task, JSON_UNESCAPED_UNICODE),
-                'add_time' => time(),
-                'update_time' => time(),
-            ]);
+            $url = $task['url'];
 
-            $mq = SpiderProducer::addMessage(['task_id' => $id]);
-            return create_return(SUCCESS_CODE, ['id' => $id, 'mq' => $mq,]);
+            if(!filter_var($url, FILTER_VALIDATE_URL)){
+                return create_return(ERROR_CODE, '格式错误');
+            }
+
+            $mq = SpiderProducer::addMessage(['url' => $url]);
+            return create_return(SUCCESS_CODE, ['mq' => $mq,]);
         } catch (\Throwable $e) {
             return create_return(ERROR_CODE, 'error');
         }

@@ -19,7 +19,7 @@ use Hyperf\WebSocketClient\ClientFactory as WSClientFactory;
 use Swoole\Coroutine\Channel;
 
 /**
- * php bin/hyperf.php process:rabbit SpiderConsumer >> ./runtime/logs/process.log
+ * php bin/hyperf.php process:rabbit SpiderConsumer >> ./runtime/logs/spider_request.log
  * @Consumer
  */
 class SpiderConsumer extends BaseConsumer
@@ -45,7 +45,7 @@ class SpiderConsumer extends BaseConsumer
         $max_request_num = 3;
         $request_num = 0;
         $resp = '';
-        while ($request_num++ < $max_request_num) {
+        while (++$request_num <= $max_request_num) {
             try {
                 $resp = http_request($url);
             } catch (\Throwable $e) {
