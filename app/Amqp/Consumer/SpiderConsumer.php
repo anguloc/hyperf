@@ -45,11 +45,12 @@ class SpiderConsumer extends BaseConsumer
         $max_request_num = 3;
         $request_num = 0;
         $resp = '';
-        while (++$request_num <= $max_request_num) {
+        while ($request_num < $max_request_num) {
+            $request_num++;
             try {
                 $resp = http_request($url);
             } catch (\Throwable $e) {
-                Logger::get()->error("class:" . __CLASS__ . ",function:" . __FUNCTION__ . ",line:" . __LINE__ . "，参数错误，err:" . $e->getMessage());
+                Logger::get()->error("class:" . __CLASS__ . ",function:" . __FUNCTION__ . ",line:" . __LINE__ . "，请求错误，errmsg:" . $e->getMessage());
                 continue;
             }
             if ($resp) {
@@ -66,7 +67,7 @@ class SpiderConsumer extends BaseConsumer
             Logger::get()->error("class:" . __CLASS__ . ",function:" . __FUNCTION__ . ",line:" . __LINE__ . "，参数错误，err:" . $e->getMessage());
         }
 
-        if (!$resp && $retry_num++ < 3) {
+        if (!$resp && $retry_num++ < 2) {
             $this->retry([
                 'rid' => $rid,
                 'url' => $url,
