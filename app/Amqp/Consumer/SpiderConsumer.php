@@ -81,7 +81,8 @@ class SpiderConsumer extends BaseConsumer
 
     protected function retry($data)
     {
-        if (!SpiderProducer::addMessage($data)) {
+        $expire = mt_rand(3,6);
+        if (!SpiderProducer::addMessage($data, $expire)) {
             Logger::get()->error("class:" . __CLASS__ . ",function:" . __FUNCTION__ . ",line:" . __LINE__ . "，重新入队列失败，data:" . json_encode($data));
         }
     }
