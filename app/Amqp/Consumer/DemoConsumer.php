@@ -12,7 +12,7 @@ use Hyperf\Amqp\Message\ConsumerMessage;
 use Hyperf\Amqp\Message\Type;
 
 /**
- * php bin/hyperf.php process:rabbit DemoConsumer >> ./runtime/logs/process.log
+ * php -d swoole.use_shortname=Off bin/hyperf.php process:rabbit DemoConsumer >> ./runtime/logs/process.log
  * @Consumer(exchange="hyperf", queue="hyperf", routingKey="hyperf", nums=1,enable=false)
  */
 class DemoConsumer extends BaseConsumer

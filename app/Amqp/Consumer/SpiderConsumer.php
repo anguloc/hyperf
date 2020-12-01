@@ -19,7 +19,7 @@ use Hyperf\WebSocketClient\ClientFactory as WSClientFactory;
 use Swoole\Coroutine\Channel;
 
 /**
- * php bin/hyperf.php process:rabbit SpiderConsumer >> ./runtime/logs/spider_request.log
+ * php -d swoole.use_shortname=Off bin/hyperf.php process:rabbit SpiderConsumer >> ./runtime/logs/spider_request.log
  * @Consumer
  */
 class SpiderConsumer extends BaseConsumer

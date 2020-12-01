@@ -11,7 +11,7 @@ use Hyperf\Amqp\Annotation\Consumer;
 
 
 /**
- * php bin/hyperf.php process:rabbit DayConsumer >> ./runtime/logs/process.log
+ * php -d swoole.use_shortname=Off bin/hyperf.php process:rabbit DayConsumer >> ./runtime/logs/process.log
  * @Consumer(nums=1,enable=false)
  */
 class DayConsumer extends DelayConsumer

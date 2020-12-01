@@ -15,7 +15,7 @@ use Hyperf\WebSocketClient\ClientFactory as WSClientFactory;
 use Swoole\Coroutine\Channel;
 
 /**
- * php bin/hyperf.php process:rabbit NMessageConsumer >> ./runtime/logs/process.log
+ * php -d swoole.use_shortname=Off bin/hyperf.php process:rabbit NMessageConsumer >> ./runtime/logs/process.log
  * @Consumer
  */
 class NMessageConsumer extends BaseConsumer
