@@ -8,7 +8,9 @@ use App\Amqp\Consumer\SpiderConsumer;
 use App\Amqp\Producer\DemoProducer;
 use App\Amqp\Producer\NMessageProducer;
 use App\Amqp\Producer\SpiderProducer;
+use App\Model\SpidersRequest;
 use App\Model\SpidersTask;
+use App\Util\Logger;
 use App\Util\Test;
 use App\WebSocket\Lib\Constants;
 use Hyperf\Amqp\Producer;
@@ -38,7 +40,7 @@ class SpiderController extends AbstractController
 
             $url = $task['url'];
 
-            if(!filter_var($url, FILTER_VALIDATE_URL)){
+            if (!filter_var($url, FILTER_VALIDATE_URL)) {
                 return create_return(ERROR_CODE, '格式错误');
             }
 
@@ -48,7 +50,6 @@ class SpiderController extends AbstractController
             return create_return(ERROR_CODE, 'error');
         }
     }
-
 
 
 }

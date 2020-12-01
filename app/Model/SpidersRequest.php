@@ -32,4 +32,9 @@ class SpidersRequest extends Model
      * @var array
      */
     protected $casts = ['id' => 'integer', 'request_num' => 'integer', 'add_time' => 'integer', 'update_time' => 'integer', 'deleted_time' => 'integer'];
+
+    const INIT_TYPE = 0; // 初始状态
+    const LOCK_TYPE = 1; // 锁定状态
+    const SUC_TYPE = 2; //
+    const FAIL_TYPE = 3;
 }

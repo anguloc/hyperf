@@ -10,6 +10,7 @@ use Hyperf\Amqp\Consumer;
 use Hyperf\Command\Annotation\Command;
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Psr\Container\ContainerInterface;
+use Swoole\Runtime;
 use Symfony\Component\Console\Input\InputArgument;
 use Hyperf\Amqp\Annotation\Consumer as AnnotationConsumer;
 
@@ -89,11 +90,12 @@ class RabbitMQCommand extends ProcessCommand
     {
         try {
             if ($this->consumer->isCoroutine()) {
-                $this->container->get(Consumer::class)->consume($this->consumer);
-            } else {
+                Runtime::enableCoroutine(true, swoole_hook_flags());
                 go(function () {
                     $this->container->get(Consumer::class)->consume($this->consumer);
                 });
+            } else {
+                $this->container->get(Consumer::class)->consume($this->consumer);
             }
         }catch (\Throwable $e) {
             self::log('file:'.$e->getFile().'，msg:'.$e->getMessage());
