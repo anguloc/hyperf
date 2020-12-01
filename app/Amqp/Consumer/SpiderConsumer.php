@@ -47,7 +47,7 @@ class SpiderConsumer extends BaseConsumer
         $resp = '';
         while ($request_num < $max_request_num) {
             $request_num++;
-            $sleep_expire = mt_rand(3,6);
+            $sleep_expire = mt_rand(2,5);
             try {
                 $resp = http_request($url);
             } catch (\Throwable $e) {
