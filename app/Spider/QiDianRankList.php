@@ -8,6 +8,7 @@ use App\Model\SpidersNovelRank;
 use App\Model\SpidersNovelStatistic;
 use App\Spider\Lib\AbstractSpider;
 use App\Spider\Lib\Spider;
+use Hyperf\DbConnection\Db;
 use Symfony\Component\Finder\Finder;
 use Swoole\Timer;
 use Swoole\Coroutine\Channel;
@@ -319,6 +320,34 @@ class QiDianRankList extends AbstractSpider implements Spider
                     SpidersNovelRank::insertOnDuplicateKey($item);
                 } catch (\Throwable $e) {
                     self::log("排行榜入库失败{$e->getMessage()}");
+                }
+                try {
+                    // novel入库
+                    $new_novel_key = array_map(function ($v) {
+                        return SpidersNovel::getNovelKey($v['nid']);
+                    }, $item);
+                    $exist_novels = SpidersNovel::query()->where([
+                        'is_deleted' => NOT_DELETE_STATUS,
+                    ])->whereIn('key', $new_novel_key)->get('key')->toArray();
+                    $exist_novels = array_column($exist_novels, 'key');
+
+                    $novel = [];
+                    foreach ($item as $bv) {
+                        if (in_array(SpidersNovel::getNovelKey($bv['nid']), $exist_novels)) {
+                            continue;
+                        }
+                        $novel[] = [
+                            'title' => $bv['title'],
+                            'url' => "https://book.qidian.com/info/{$bv['nid']}",
+                            'key' => SpidersNovel::getNovelKey($bv['nid']),
+                            'add_time' => $time,
+                        ];
+                    }
+                    if ($novel) {
+                        SpidersNovel::insertOnDuplicateKey($novel);
+                    }
+                } catch (\Throwable $e) {
+                    self::log("novel-1入库失败{$e->getMessage()}");
                 }
             }
         }

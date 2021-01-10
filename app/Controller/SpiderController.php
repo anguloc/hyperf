@@ -44,9 +44,24 @@ class SpiderController extends AbstractController
                 return create_return(ERROR_CODE, '格式错误');
             }
 
-            $mq = SpiderProducer::addMessage(['url' => $url]);
-            return create_return(SUCCESS_CODE, ['mq' => $mq,]);
+            $data = ['url' => $url];
+            $resp = [];
+            if (isset($task['is_need_id']) && $task['is_need_id'] == 1) {
+                $time = time();
+                $insert_data = [
+                    'url' => $data['url'],
+                    'content' => '',
+                    'add_time' => $time,
+                    'update_time' => $time,
+                ];
+                $data['rid'] = $resp['rid'] = SpidersRequest::insertGetId($insert_data);
+            }
+
+            $mq = SpiderProducer::addMessage($data);
+            $resp['mq'] = $mq;
+            return create_return(SUCCESS_CODE, $resp);
         } catch (\Throwable $e) {
+            Logger::get()->error("class:" . __CLASS__ . ",function:" . __FUNCTION__ . ",line:" . __LINE__ . "，" . $e->getMessage());
             return create_return(ERROR_CODE, 'error');
         }
     }

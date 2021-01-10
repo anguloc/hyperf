@@ -8,9 +8,9 @@ use App\Constants\ErrorCode;
 
 class ParamException extends Exception
 {
-    public function __construct()
+    public function __construct($message = null)
     {
-        parent::__construct(ErrorCode::PARAM_ERROR);
+        parent::__construct(ErrorCode::PARAM_ERROR, $message);
     }
 
 }

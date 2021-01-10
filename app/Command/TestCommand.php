@@ -9,7 +9,10 @@ use App\Amqp\Producer\MinuteProducer;
 use App\Command\Lib\BaseCommand;
 use App\Command\Lib\ProcessCommand;
 use App\Model\NMessage;
-use App\Spider\Lib\QiDianToken;
+use App\Model\SpidersNovel;
+use App\Model\SpidersNovelRank;
+use App\Spider\Lib\QiDianHelper;
+use App\Spider\Template\QiDianIndex;
 use App\Util\DelayQueue;
 use App\Util\Logger;
 use App\WebSocket\Conf\Route;
@@ -191,27 +194,97 @@ class TestCommand extends BaseCommand
         return (string)$res;
     }
 
+    public function get_json_struct($data)
+    {
+        $res = [];
+        if (is_array($data) || is_object($data)) {
+            foreach ($data as $k => $v) {
+                if (is_array($v)) {
+                    $res[$k]['type'] = 'array';
+                    $res[$k]['child'] = $this->get_json_struct(current($v));
+                } elseif(is_object($v)){
+                    $res[$k]['type'] = 'object';
+                    $res[$k]['child'] = $this->get_json_struct($v);
+                } elseif(is_string($v)) {
+                    $res[$k] = 'string';
+                }elseif(is_numeric($v)){
+                    $res[$k] = 'num';
+                }else{
+                    $res[$k] = 'unknown';
+                }
+            }
+        } else {
+            $res = get_type($data);
+        }
+        return $res;
+    }
+
     public function handle()
     {
+        echo microtime(true),"\n";
+        echo 123,"\n";
+
+        $r = SpidersNovel::query()->where([
+            'is_deleted' => NOT_DELETE_STATUS,
+        ])->whereIn('key', ['1','2'])->get('key');
+        dd($r);
+
+        die;
+
+        $r = SpidersNovelRank::query()->groupBy(['nid'])->get('nid')->toArray();
+
+        $r = array_column($r, 'nid');
+
+        foreach ($r as &$item) {
+            $item = "qidian_{$item}";
+        }
+
+        $list = SpidersNovel::query()->get('key')->toArray();
+        $list = array_column($list, 'key');
+
+        $a = array_diff($r, $list);
+        print_r(count($a));
 
 
-        $data = [
-            'url' => 'http://www.gkfk5.cn',
-        ];
-        $m = new SpiderConsumer();
-        $ret = $m->consume($data);
-        return $ret;
+
 
         return;
+
+        $file = BASE_PATH . "/runtime/temp/test/guimiindex.html";
+
+
+        $json = file_get_contents($file);
+        $data = json_decode($json, true);
+
+        $template = new QiDianIndex();
+        $res = $template->parse($data);
+        print_r($res);
+
+        die;
+        $resp = QiDianHelper::getIndex(1010868264);
+
+
+//        var_dump($resp);
+        if ($resp) {
+            echo 1;
+        } else {
+            echo 2;
+        }
+//        file_put_contents($file, $resp);
+
+        echo BASE_PATH;
+
+
+        return '';
 
         $this->dsad();
 
         return;
-        go(function(){
+        go(function () {
             $con = \Swoole\Coroutine::getContext();
             $a = $con['asd'] ?? null;
             var_dump([
-                'a',$a
+                'a', $a
             ]);
 
             $con['asd'] = 'hdfhdfgfdsg';
@@ -219,21 +292,20 @@ class TestCommand extends BaseCommand
             $con = \Swoole\Coroutine::getContext();
             $a = $con['asd'] ?? null;
             var_dump([
-                'a',$a
+                'a', $a
             ]);
 
-            go(function(){
+            go(function () {
                 $con = \Swoole\Coroutine::getContext();
                 $a = $con['asd'] ?? null;
                 var_dump([
-                    'a',$a
+                    'a', $a
                 ]);
             });
 
         });
 
         return;
-
 
 
 //        $file = BASE_PATH . '/../gk/public/a.msp';
@@ -249,7 +321,6 @@ class TestCommand extends BaseCommand
 
 
         $data = http_request('http://l.cn/a.msp');
-
 
 
         for ($i = 0; $i < 7; $i++) {
@@ -274,7 +345,8 @@ class TestCommand extends BaseCommand
         file_put_contents("a.data", $data);
         return;
 
-        echo strlen($this->calc(31));die;
+        echo strlen($this->calc(31));
+        die;
 
 
         echo $this->calc(20), PHP_EOL;
@@ -654,15 +726,15 @@ class TestCommand extends BaseCommand
             BASE_PATH . '/runtime/temp/dd',
         ])->name("*.html");
 
-        foreach ($files as $k=>$file) {
+        foreach ($files as $k => $file) {
             if (!$file instanceof \Symfony\Component\Finder\SplFileInfo || !$html = $file->getContents()) {
                 continue;
             }
             $html = $file->getContents();
-            $html =$this->br2nl($html);
+            $html = $this->br2nl($html);
             $html = strip_tags($html);
 
-            file_put_contents($k . '.txt',$html);
+            file_put_contents($k . '.txt', $html);
 
 
         }

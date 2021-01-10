@@ -51,14 +51,12 @@ class SpiderConsumer extends BaseConsumer
             try {
                 $resp = http_request($url);
             } catch (\Throwable $e) {
-                sleep($sleep_expire);
                 Logger::get()->error("class:" . __CLASS__ . ",function:" . __FUNCTION__ . ",line:" . __LINE__ . "，请求错误，errmsg:" . $e->getMessage());
-                continue;
+            } finally {
+                if (!$resp) {
+                    sleep($sleep_expire);
+                }
             }
-            if ($resp) {
-                break;
-            }
-            sleep($sleep_expire);
         }
 
         try {
@@ -66,7 +64,7 @@ class SpiderConsumer extends BaseConsumer
                 'request_num' => Db::raw("`request_num` + {$request_num}"),
                 'content' => $resp,
             ]);
-        }catch (\Throwable $e){
+        } catch (\Throwable $e) {
             Logger::get()->error("class:" . __CLASS__ . ",function:" . __FUNCTION__ . ",line:" . __LINE__ . "，参数错误，err:" . $e->getMessage());
         }
 
