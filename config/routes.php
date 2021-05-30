@@ -21,5 +21,6 @@ Router::get('/favicon.ico', function () {
 
 Router::addServer('ws', function () {
     Router::get('/', App\WebSocket\RegisterService::class);
+    Router::get('/term', App\WebSocket\RegisterService::class);
 });
 

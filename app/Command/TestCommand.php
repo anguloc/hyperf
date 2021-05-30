@@ -12,6 +12,7 @@ use App\Model\NMessage;
 use App\Model\SpidersNovel;
 use App\Model\SpidersNovelRank;
 use App\Spider\Lib\QiDianHelper;
+use App\Spider\NovelSpider;
 use App\Spider\Template\QiDianIndex;
 use App\Util\DelayQueue;
 use App\Util\Logger;
@@ -221,32 +222,198 @@ class TestCommand extends BaseCommand
 
     public function handle()
     {
-        echo microtime(true),"\n";
-        echo 123,"\n";
 
-        $r = SpidersNovel::query()->where([
-            'is_deleted' => NOT_DELETE_STATUS,
-        ])->whereIn('key', ['1','2'])->get('key');
-        dd($r);
+        $m = new NovelSpider();
+        $m->setKeyword("黑龙法典")->run();
+
+        return 1;
+
+        for ($n = 1; $n <= 3; $n++) {
+            $process = new \Swoole\Process(function () use ($n) {
+                echo 'Child #' . getmypid() . " start and sleep {$n}s" . PHP_EOL;
+                sleep($n);
+                echo 'Child #' . getmypid() . ' exit' . PHP_EOL;
+                die;
+            });
+            $process->start();
+        }
+        for ($n = 3; $n>0;$n--) {
+            $status = \Swoole\Process::wait(true);
+            echo "Recycled #{$status['pid']}, code={$status['code']}, signal={$status['signal']}" . PHP_EOL;
+        }
+        echo 'Parent #' . getmypid() . ' exit' . PHP_EOL;
+
 
         die;
 
-        $r = SpidersNovelRank::query()->groupBy(['nid'])->get('nid')->toArray();
+        $f = BASE_PATH . '/runtime/temp/test/aa';
 
-        $r = array_column($r, 'nid');
+        $a = file_get_contents($f . '/1.html');
+        file_put_contents($f . '/1.txt', strip_tags($a));
 
-        foreach ($r as &$item) {
-            $item = "qidian_{$item}";
+        $a = file_get_contents($f . '/2.html');
+        file_put_contents($f . '/2.txt', strip_tags($a));
+
+        $a = file_get_contents($f . '/3.html');
+        file_put_contents($f . '/3.txt', strip_tags($a));
+
+        die;
+        $tfsadsd = microtime(true);
+        echo $tfsadsd,"\n";
+        echo 123,"\n";
+
+        $files = (new Finder())->files()->in([
+            BASE_PATH . '/runtime/temp/qidian/books',
+        ])->name("*.html");
+
+        // 4667  4636
+        echo $files->count();
+        echo PHP_EOL;
+//
+        die;
+//
+//
+        $arr = file_get_contents(BASE_PATH . '/runtime/temp/qidian/gsdfsdfdssf.log');
+        $arr = json_decode($arr, true);
+        $c = guzzle(['headers' => [
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
+        ],]);
+        foreach ($arr as $item) {
+            try{
+                $resp = $c->get("https://book.qidian.com/info/{$item}");
+                if($resp->getStatusCode() != 200){
+                    continue;
+                }
+                file_put_contents(BASE_PATH . "/runtime/temp/qidian/ttt/{$item}_book.html", $resp->getBody()->getContents());
+
+            }catch (\Throwable $e){
+                var_dump('false');
+            }
         }
 
+        die;
+
+//        $t = file_get_contents(BASE_PATH . '/runtime/temp/qidian/a.log');
+//        $arrasdasd = explode("\r\n",$t);
+//        $rrr = [];
+//        foreach ($arrasdasd as $item) {
+//            $m = null;
+//            preg_match("/https(.*)\,/",$item,$m);
+//            $axdasdf = trim($m[0],",");
+//            $gdfgdf = explode("/", $axdasdf);
+//            $rrr[] = end($gdfgdf);
+//        }
+//
+//        $sgdgsdfg = array_diff($arr, $rrr);
+////        print_r($sgdgsdfg);
+//
+//        $sdfgsdf = [];
+//        foreach ($sgdgsdfg as $sdfsd) {
+//            if(!file_exists(BASE_PATH . "/runtime/temp/qidian/ttt/{$sdfsd}_book.html")){
+//                $sdfgsdf[] = $sdfsd;
+//            }
+//        }
+//
+//        print_r($sdfgsdf);
+//
+//
+//
+//        die;
+
+
+        $r = SpidersNovel::query()->where([
+            'is_deleted' => NOT_DELETE_STATUS,
+        ])->orderByDesc('add_time')
+            ->orderByDesc('id')->get()->toArray();
+
+        $res = [];
+        $i=1;
+        foreach ($r as $k=>$item) {
+            $i = floor($k/ 500)+1;
+            $nid = substr($item['key'],7);
+            if(!file_exists(BASE_PATH . '/runtime/temp/qidian/books/' . $i . '/' . $nid . '_book.html')){
+                $res[] = $nid;
+            }
+        }
+
+        file_put_contents(BASE_PATH . '/runtime/temp/qidian/gsdfsdfdssf.log', json_encode($res));
+
+//        $sgdgsdfg = array_diff($res, $rrr);
+//        print_r($sgdgsdfg);
+        // https://book.qidian.com/info/1025003869
+        // https://book.qidian.com/info/1025295698
+        // https://book.qidian.com/info/1011779433
+        // https://book.qidian.com/info/1021971174
+
+
+
+        var_dump(count($res));
+
+        die;
+
+        $a = BASE_PATH . '/runtime/temp/qidian/index.cache';
+        $c = file_get_contents($a);
+        $list = json_decode($c, true);
+        echo count($list);
+
+        return;
+
+        $r = SpidersNovel::query()->where([
+            'is_deleted' => NOT_DELETE_STATUS,
+        ])->get()->toArray();
+
+
+        $r = SpidersNovelRank::query()->groupBy(['nid'])->get()->toArray();
+
+//        $r = array_column($r, null,'nid');
+
+        $time = time();
         $list = SpidersNovel::query()->get('key')->toArray();
-        $list = array_column($list, 'key');
+        $list = array_column($list, null,'key');
+        $res = [];
+        foreach ($r as $item) {
+            $nid = $item['nid'];
+            if(isset($list["qidian_{$nid}"])){
+                continue;
+            }
 
-        $a = array_diff($r, $list);
-        print_r(count($a));
+            $res[] = [
+                'title' => $item['title'],
+                'url' => "https://book.qidian.com/info/{$nid}",
+                'key' => SpidersNovel::getNovelKey($nid),
+                'add_time' => $time,
+                'fsdfsd' => $item,
+            ];
+        }
 
 
+        print_r($res);
+        die;
 
+        if($res){
+            $lll = array_chunk($res, 10);
+            foreach ($lll as $asdsa) {
+                SpidersNovel::insertOnDuplicateKey($asdsa);
+            }
+        }
+
+//        print_r($res);
+
+        echo count($res),PHP_EOL;
+
+//        foreach ($r as &$item) {
+//            $item = "qidian_{$item}";
+//        }
+//
+//
+//        $list = array_column($list, 'key');
+//
+//        $a = array_diff($r, $list);
+//        print_r(count($a));
+
+        echo $time,"\n";
+
+        echo (microtime(true) - $tfsadsd),"\n";
 
         return;
 

@@ -42,7 +42,7 @@ class RegisterService implements OnMessageInterface, OnOpenInterface, OnCloseInt
         $this->logger = Logger::get('ws:', WS_LOG);
     }
 
-    public function onOpen(WebSocketServer $server, Request $request): void
+    public function onOpen($server, Request $request): void
     {
         try {
             $fd = $request->fd;
@@ -58,7 +58,7 @@ class RegisterService implements OnMessageInterface, OnOpenInterface, OnCloseInt
         }
     }
 
-    public function onMessage(WebSocketServer $server, Frame $frame): void
+    public function onMessage($server, Frame $frame): void
     {
         try {
             $this->logger->debug("web socket recv data {$frame->data} from fd {$frame->fd}");
@@ -81,7 +81,7 @@ class RegisterService implements OnMessageInterface, OnOpenInterface, OnCloseInt
         }
     }
 
-    public function onClose(Server $server, int $fd, int $reactorId): void
+    public function onClose($server, int $fd, int $reactorId): void
     {
         try {
             defer(function () use ($fd) {

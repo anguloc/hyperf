@@ -32,6 +32,7 @@ class SpidersNovelOption extends Model
      */
     protected $casts = ['id' => 'int', 'nid' => 'integer', 'add_time' => 'integer', 'is_deleted' => 'integer'];
 
-    const TAGS_OPTION = 'tags';
-    const CUSTOM_TAGS_OPTION = 'custom_tags';
+    const TAGS_OPTION = 'tags'; // 起点标签
+    const CUSTOM_TAGS_OPTION = 'custom_tags'; // 起点自定义标签
+    const IS_404 = 'q404'; // 起点404
 }
