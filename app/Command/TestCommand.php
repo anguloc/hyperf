@@ -222,6 +222,7 @@ class TestCommand extends BaseCommand
 
     public function handle()
     {
+        // 抓起点
 
         $m = new NovelSpider();
         $m->setKeyword("黑龙法典")->run();
