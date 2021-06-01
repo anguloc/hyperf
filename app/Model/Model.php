@@ -224,20 +224,6 @@ abstract class Model extends BaseModel
         parent::__construct($attributes);
     }
 
-    public function save(array $options = []): bool
-    {
-        try {
-            return parent::save($options);
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage(), [
-                'exception' => get_class($e),
-                'class' => static::class,
-                'method' => __FUNCTION__,
-            ]);
-            return false;
-        }
-    }
-
 
     /**
      * @param array $data

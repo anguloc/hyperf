@@ -3,10 +3,12 @@
 namespace App\Spider;
 
 use App\Model\SpidersNovelRank;
+use App\Model\SpidersTask;
 use App\Spider\Lib\AbstractSpider;
 use App\Spider\Lib\QiDianHelper;
 use App\Spider\Lib\Spider;
 use App\Spider\Template\QiDianIndex;
+use Hyperf\Database\Model\ModelNotFoundException;
 use Symfony\Component\Finder\Finder;
 use Swoole\Timer;
 use Swoole\Coroutine\Channel;
@@ -26,7 +28,7 @@ class NovelSpider extends AbstractSpider implements Spider
 
     protected $isRunning = true;
 
-    protected static $tempDir = BASE_PATH . '/runtime/temp/sx/';
+    protected static $tempDir = BASE_PATH . '/runtime/temp/novel_spider/';
 
     /**
      * @var Finder
@@ -69,20 +71,108 @@ class NovelSpider extends AbstractSpider implements Spider
      */
     protected $keyword;
 
+    /**
+     * @var int 任务id
+     */
+    protected $taskId;
+
+    /**
+     * @var SpidersTask 任务数据实体
+     */
+    protected $task;
+
+    /**
+     * @var int 当前步骤
+     */
+    protected $currentStep;
+
+    // 步骤
+    const STEP_INIT = 1; // 初始化
+    const STEP_BID = 2; // 拿bid
+    const STEP_QIDIAN_INDEX = 3; // 拿起点目录
+    const STEP_SOURCE_INDEX = 4; // 拿资源站目录
+    const STEP_CONTENT = 5; // 抓取
+    const STEP_FORMAT = 6; // 格式化内容
+    const STEP_CLEAR_CONTENT = 7; // 清理
+
+    const STEP_ARRAY = [
+        self::STEP_INIT,
+        self::STEP_BID,
+        self::STEP_QIDIAN_INDEX,
+        self::STEP_SOURCE_INDEX,
+        self::STEP_CONTENT,
+        self::STEP_FORMAT,
+        self::STEP_CLEAR_CONTENT,
+    ];
+
     public function run()
     {
         try {
-            return $this->doRun();
+            if (is_dir(self::$tempDir)) {
+                mkdir(self::$tempDir, 0644, true);
+            }
+
+            if ($this->taskId) {
+                $this->task = (new SpidersTask())->where([
+                    'id' => $this->taskId,
+                ])->firstOrFail();
+            } else {
+                $this->task = new SpidersTask();
+                $this->task->fill([
+                    'content' => json_encode([
+                        'step' => self::STEP_INIT,
+                        'bid' => '',
+                        'qidian_search_file',
+                        'qidian_index_file',
+                        'source' => [],
+                        'exception' => '',
+                    ]),
+                ])->save();
+                $this->taskId = $this->task->id;
+            }
+            $this->task->content = json_decode($this->task->content, true);
+            $this->currentStep = $this->task->content['step'] ?? false;
+            if (!in_array($this->currentStep, self::STEP_ARRAY)) {
+                throw new \LogicException("错误的步骤");
+            }
+
             \Swoole\Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
             \Swoole\Coroutine\Run([$this, 'doRun']);
+        } catch (ModelNotFoundException $e) {
+            self::log("错误的id");
         } catch (\Throwable $e) {
             self::log("error,msg:{$e->getMessage()}");
+            $this->saveTask([
+                'exception' => $e->getMessage(),
+            ]);
         }
+    }
+
+    /**
+     * 保存任务
+     *
+     * @param array $array 额外的保存字段
+     * @return bool
+     */
+    protected function saveTask($array = [])
+    {
+        if (empty($this->task)) {
+            return false;
+        }
+        $content = $this->task->content;
+        if (!empty($array)) {
+            $content = array_merge($content, $array);
+        }
+        $this->task->fill([
+            'content' => json_encode($content, JSON_UNESCAPED_UNICODE),
+        ])->save();
+        return true;
     }
 
     /**
      * 设置关键词
      * @param $keyword
+     * @return self
      */
     public function setKeyword($keyword)
     {
@@ -90,177 +180,128 @@ class NovelSpider extends AbstractSpider implements Spider
         return $this;
     }
 
+    /**
+     * 设置任务id
+     * @param $task_id
+     */
+    public function setTaskId($task_id)
+    {
+        $this->taskId = $task_id;
+    }
+
+
     public function doRun($step = 0)
     {
-        // 搜索起点
-        // 抓取起点bid
-        // 从起点拿目录，写库
-        // 从其他网站搜索，拿目录链接
-        // 抓目录，对比数据库中目录
-        // 调用爬虫接口，回写rid关联爬虫内容表
-        // 确保所有章节拉取到后、或者手动改状态后，格式化数据到章节表
-        // 调用清理逻辑，洗数据
-        // 打包生成文件
         $this->init();
+        $this->searchQidian();
+        $this->saveQiDianIndex();
+        $this->queryEachSource();
+        $this->spiderContent();
+        $this->formatContent();
+        $this->clearContent();
+    }
 
-        $url = "https://www.qidian.com/search?kw=" . $this->keyword;
-        $resp = guzzle()->get($url);
-        if ($resp->getStatusCode() != 200) {
-            throw new \LogicException("起点搜索错误",1);
+    /**
+     * 搜索起点
+     * 抓取起点bid
+     * 写库
+     */
+    protected function searchQidian()
+    {
+        if ($this->currentStep >= self::STEP_BID) {
+            return true;
         }
-        $search = $resp->getBody()->getContents();
+        if (!$this->keyword) {
+            throw new \LogicException("关键词不存在");
+        }
+
+        $file_name = md5($this->keyword);
+        $file = self::$tempDir . "/keyword/{$file_name}.html";
+
+        if (!is_file($file)) {
+            $url = "https://www.qidian.com/search?kw=" . $this->keyword;
+            $resp = guzzle()->get($url);
+            if ($resp->getStatusCode() != 200) {
+                throw new \LogicException("起点搜索错误");
+            }
+            $html = $resp->getBody()->getContents();
+            file_put_contents($file, $html);
+        }else{
+            $html = file_get_contents($file);
+        }
+        $this->task->content['qidian_search_file'] = $file;
+
         $ql = new QueryList();
-        $dom = $ql->setHtml($search)->find(".red-kw");
+        $dom = $ql->setHtml($html)->find(".red-kw");
         $title = $dom->text();
         if ($title != $this->keyword) {
-            throw new \LogicException("没有搜索到",1);
+            throw new \LogicException("没有搜索到");
         }
         $bid = $dom->parent("a")->attr("data-bid");
-        dump($title);
-        dump($bid);
-//        dd($search);
-        QiDianHelper::getIndex($bid);
-
-//        (new QiDianIndex())->parse();
-
-        $url = "https://www.ibooktxt.com/search.php?q=" . $this->keyword;
-
-        return;
-
-
-
-        // index.html
-//        $resp = $this->client->get("https://www.ibooktxt.com/0_24/");
-//        $html = $resp->getBody()->getContents();
-//        $encode = mb_detect_encoding($html, array("ASCII", 'UTF-8', "GB2312", "GBK", 'BIG5'));
-//        $html = iconv($encode, 'UTF-8//IGNORE', $html);
-//        $html = str_replace('charset=gbk','',$html);
-//        $this->fs->put("index.html", $html);
-//        return;
-
-        // index.json
-//        $rt = [];
-//        $html = $this->fs->read("index.html");
-//        $html = str_replace('charset=gbk','',$html);
-//        $encode = mb_detect_encoding($html, array("ASCII", 'UTF-8', "GB2312", "GBK", 'BIG5'));
-//        $html = iconv($encode, 'UTF-8//IGNORE', $html);
-//        $this->ql->setHtml($html)->find("#list dl dd")->each(function (\QL\Dom\Elements $item) use (&$rt) {
-//            $rt[] = [
-//                'href' => "https://www.ibooktxt.com".$item->children('a')->attr('href'),
-//                'title' => $item->text()
-//            ];
-//        });
-//        $this->fs->put("index.json", json_encode($rt, JSON_UNESCAPED_UNICODE));
-//        return;
-
-        // parse
-        $files = $this->finder->files()->in([
-            self::$tempDir,
-        ])->name('*.html');
-
-        $json = $this->fs->read("index.json");
-        $data = json_decode($json, true);
-
-        $i = 0;
-        foreach ($data as $datum) {
-            $filename = substr($datum['href'], strrpos($datum['href'], '/') + 1);
-            $filename = substr($filename,0,2) . '/' . $filename;
-            $html = $this->fs->read($filename);
-            $html = str_replace('charset=gbk','',$html);
-            $encode = mb_detect_encoding($html, array("ASCII", 'UTF-8', "GB2312", "GBK", 'BIG5'));
-            $html = iconv($encode, 'UTF-8//IGNORE', $html);
-
-            $dom = $this->ql->setHtml($html);
-
-
-            $title = $dom->find(".bookname h1")->text();
-
-            $c = $dom->find('#content')->html();
-
-            $con = explode("<br>", $c);
-
-            foreach ($con as $k => &$item) {
-                $item = trim($item);
-                $item = ltrim($item, chr(194) . chr(160));
-            }
-
-            $c = implode("\n", $con);
-            $c = strip_tags($c);
-
-            $c = $title . "\n\n" . preg_replace('/\<br(\s*)?\/?\>/i', "\n", $c) . "\n\n\n";
-
-            $c = trim($c) . "\n\n";
-
-            $c = str_replace(['【看书君】','www.kanshujun.com','看书君', '(有）?(意）?(思）?(书）?(院）', '有）?意）?思）?书）?院）'],'',$c);
-
-            file_put_contents(self::$tempDir . 'log.log', $c, FILE_APPEND);
-
-            $i++;
-            $t = microtime(true) - $this->startTime;
-            echo "运行完第{$i}次：".date("Y-m-d H:i:s").'--'.$t.PHP_EOL;
+        if (!$bid) {
+            throw new \LogicException("未找到bid");
         }
 
-        return;
+        $this->task->content['bid'] = $bid;
+        $this->task->content['step'] = self::STEP_BID;
+        $this->currentStep = self::STEP_BID;
+        $this->saveTask();
+        return true;
+    }
 
-        // inject
-        $json = $this->fs->read("index.json");
-        $data = json_decode($json, true);
-        defer(function () use ($data) {
-            echo 'index:', count($data), PHP_EOL;
-        });
-        $c = true;
-        $asd = $zxc = 0;
-        foreach ($data as $datum) {
-//            if (strpos($datum['href'],'616814') !== false) {
-//                $c = false;
-//            }
-//            if ($c) {
-//                continue;
-//            }
-            $filename = substr($datum['href'], strrpos($datum['href'], '/') + 1);
-            $filename = substr($filename, 0, 2) . '/' . $filename;
-            if ($this->fs->has($filename)) {
-                $asd++;
-            } else {
-                $zxc++;
-                $this->spiderQueue->push([
-                    'url' => $datum['href'],
-                    'filename' => $filename,
-                    'no_parse' => 1,
-                ]);
-            }
+    /**
+     * 从起点拿目录，写库
+     */
+    protected function saveQiDianIndex()
+    {
+        if ($this->currentStep >= self::STEP_QIDIAN_INDEX) {
+            return true;
         }
-        var_dump([$asd, $zxc]);return;
+        $bid = $this->task->content['bid'];
+        $index = QiDianHelper::getIndex($bid);
+        $res = (new QiDianIndex())->parse($index);
 
-        Timer::tick(5000, function ($id) {
-            self::log("定时检测：parse：{$this->parseQueue->length()},spider：{$this->spiderQueue->length()}");
-            if ($this->parseQueue->isEmpty() && $this->spiderQueue->isEmpty()) {
-                $this->sleepChan->push(1);
-                Timer::clear($id);
-            }
-        });
-        while (!$r = $this->sleepChan->pop(1)) {
-            go(function () {
-                $this->spider();
-            });
-            go(function () {
-                $this->spider();
-            });
-            go(function () {
-                $this->spider();
-            });
-            go(function () {
-                $this->spider();
-            });
-//            go(function () {
-//                $this->parse();
-//            });
+    }
+
+    /**
+     * 从其他网站搜索，拿目录链接
+     */
+    protected function queryEachSource()
+    {
+        if ($this->currentStep >= self::STEP_SOURCE_INDEX) {
+            return true;
         }
+    }
 
+    /**
+     * 抓目录，对比数据库中目录
+     * 调用爬虫接口，回写rid关联爬虫内容表
+     */
+    protected function spiderContent()
+    {
+        if ($this->currentStep >= self::STEP_CONTENT) {
+            return true;
+        }
+    }
 
-//        $this->index();
+    /**
+     * 确保所有章节拉取到后、或者手动改状态后，格式化数据到章节表
+     */
+    protected function formatContent()
+    {
+        if ($this->currentStep >= self::STEP_FORMAT) {
+            return true;
+        }
+    }
 
-        self::log("排行榜抓取结束，时间：" . (microtime(true) - $this->startTime));
+    /**
+     * 调用清理逻辑，洗数据
+     */
+    protected function clearContent()
+    {
+        if ($this->currentStep >= self::STEP_CLEAR_CONTENT) {
+            return true;
+        }
     }
 
     protected function init()

@@ -5,7 +5,7 @@ namespace App\Model;
 
 /**
  * @property int $id 
- * @property string $content 
+ * @property string|array $content
  * @property int $add_time 
  * @property int $update_time 
  * @property int $deleted_time 
