@@ -5,5 +5,5 @@ namespace App\Spider\Template;
 
 interface SpiderTemplate
 {
-    public function parse(Array $data);
+    public function parse(array $data);
 }

@@ -117,13 +117,17 @@ class NovelSpider extends AbstractSpider implements Spider
                     'id' => $this->taskId,
                 ])->firstOrFail();
             } else {
+                if (!$this->keyword) {
+                    throw new \LogicException("关键词缺失");
+                }
                 $this->task = new SpidersTask();
                 $this->task->fill([
                     'content' => json_encode([
                         'step' => self::STEP_INIT,
                         'bid' => '',
-                        'qidian_search_file',
-                        'qidian_index_file',
+                        'keyword' => $this->keyword,
+                        'qidian_search_file' => '',
+                        'qidian_index_file' => '',
                         'source' => [],
                         'exception' => '',
                     ]),
@@ -131,6 +135,7 @@ class NovelSpider extends AbstractSpider implements Spider
                 $this->taskId = $this->task->id;
             }
             $this->task->content = json_decode($this->task->content, true);
+            $this->keyword = $this->task->content['keyword'];
             $this->currentStep = $this->task->content['step'] ?? false;
             if (!in_array($this->currentStep, self::STEP_ARRAY)) {
                 throw new \LogicException("错误的步骤");
@@ -215,7 +220,7 @@ class NovelSpider extends AbstractSpider implements Spider
             throw new \LogicException("关键词不存在");
         }
 
-        $file_name = md5($this->keyword);
+        $file_name = md5('qidian_search_file' . $this->keyword);
         $file = self::$tempDir . "/keyword/{$file_name}.html";
 
         if (!is_file($file)) {
@@ -226,7 +231,7 @@ class NovelSpider extends AbstractSpider implements Spider
             }
             $html = $resp->getBody()->getContents();
             file_put_contents($file, $html);
-        }else{
+        } else {
             $html = file_get_contents($file);
         }
         $this->task->content['qidian_search_file'] = $file;
@@ -257,10 +262,30 @@ class NovelSpider extends AbstractSpider implements Spider
         if ($this->currentStep >= self::STEP_QIDIAN_INDEX) {
             return true;
         }
-        $bid = $this->task->content['bid'];
-        $index = QiDianHelper::getIndex($bid);
-        $res = (new QiDianIndex())->parse($index);
 
+        $file_name = md5('qidian_index_file' . $this->keyword);
+        $file = self::$tempDir . "/keyword/{$file_name}.html";
+
+        if (!is_file($file)) {
+            $bid = $this->task->content['bid'];
+            $index = QiDianHelper::getIndex($bid);
+            if (!$index || !is_array($index)) {
+                throw new \LogicException("抓取主站目录失败");
+            }
+            file_put_contents($file, $index);
+        } else {
+            $index = file_get_contents($file);
+        }
+        $this->task->content['qidian_index_file'] = $file;
+
+        $novel_index = (new QiDianIndex())->parse($index);
+        // TODO 入库
+
+        $this->task->content['step'] = self::STEP_QIDIAN_INDEX;
+        $this->currentStep = self::STEP_QIDIAN_INDEX;
+        $this->saveTask();
+
+        return true;
     }
 
     /**
@@ -271,6 +296,28 @@ class NovelSpider extends AbstractSpider implements Spider
         if ($this->currentStep >= self::STEP_SOURCE_INDEX) {
             return true;
         }
+
+        // TODO 多个源站
+        $source = 'https://www.ibooktxt.com/search.php?q=';
+        $file_name = md5('source' . $source . $this->keyword);
+        $file = self::$tempDir . "/keyword/{$file_name}.html";
+        if (!is_file($file)) {
+            $url = $source . $this->keyword;
+            $html = http_request($url);
+            file_put_contents($file, $html);
+        } else {
+            $html = file_get_contents($file);
+        }
+
+//        $ql = new QueryList();
+//        $ql->setHtml($html)->find(".result-item-title .title");
+
+        $this->task->content['source'][$file_name] = [
+            'search_file' => $file,
+        ];
+
+        $this->currentStep = self::STEP_SOURCE_INDEX;
+        return true;
     }
 
     /**

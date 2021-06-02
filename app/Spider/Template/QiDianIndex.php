@@ -7,7 +7,7 @@ use App\Exception\ParamException;
 
 class QiDianIndex implements SpiderTemplate
 {
-    public function parse(Array $data)
+    public function parse(array $data)
     {
         if (empty($data) || !is_array($data) || !isset($data['data'])) {
             throw new ParamException();
